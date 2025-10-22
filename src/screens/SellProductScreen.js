@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Image, Dimensions } from 'react-native';
 import PrimaryButton from '../components/PrimaryButton';
 import colors from '../theme/colors';
+import { useTableContext } from '../context/TableContext';
 
 const { width } = Dimensions.get('window');
 
@@ -72,19 +73,37 @@ const AVAILABLE_PRODUCTS = [
   }
 ];
 
-export default function SellProductScreen({ table, onNavigate }) {
+export default function SellProductScreen({ tableId, onNavigate, screenParams }) {
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [search, setSearch] = useState('');
+  const [feedback, setFeedback] = useState(null);
+  const { isKioskMode = false, kioskFunctions = {} } = screenParams || {};
+  const isMobile = width < 768;
+  const numColumns = isMobile ? 2 : 4;
+  const { tables, addProductsToTable } = useTableContext();
+  const table = tables.find((t) => t.id === tableId);
 
   const handleBack = () => {
-    onNavigate('OpenTables');
+    onNavigate('OpenTables', { isKioskMode, kioskFunctions });
   };
 
   const filteredProducts = AVAILABLE_PRODUCTS.filter(p =>
     p.nome.toLowerCase().includes(search.toLowerCase())
   );
 
+  const productCardWidth = useMemo(() => {
+    if (isMobile) {
+      const horizontalPadding = 24; // content padding (12 * 2)
+      const gap = 12;
+      return (width - horizontalPadding - gap) / 2;
+    }
+    const horizontalPadding = 32; // content padding (16 * 2)
+    const gap = 12 * 3;
+    return (width - horizontalPadding - gap) / 4;
+  }, [isMobile]);
+
   const handleAddProduct = (product) => {
+    if (feedback) setFeedback(null);
     const existing = selectedProducts.find(p => p.id === product.id);
     if (existing) {
       setSelectedProducts(
@@ -99,6 +118,7 @@ export default function SellProductScreen({ table, onNavigate }) {
 
   const handleRemoveProduct = (productId) => {
     setSelectedProducts(selectedProducts.filter(p => p.id !== productId));
+    if (feedback) setFeedback(null);
   };
 
   const handleDecreaseQty = (productId) => {
@@ -109,22 +129,36 @@ export default function SellProductScreen({ table, onNavigate }) {
         )
         .filter(p => p.quantidade > 0)
     );
+    if (feedback) setFeedback(null);
   };
 
   const total = selectedProducts.reduce((sum, p) => sum + (p.preco * p.quantidade), 0);
 
   const handleConfirmSale = () => {
-    if (selectedProducts.length === 0) {
-      alert('Selecione pelo menos um produto');
+    if (!table) {
+      setFeedback({ type: 'error', message: 'Mesa não encontrada. Volte e tente novamente.' });
       return;
     }
-    alert(`Venda confirmada para Mesa ${table.mesa}\nTotal: R$ ${total.toFixed(2)}`);
-    onNavigate('OpenTables');
+    if (selectedProducts.length === 0) {
+      setFeedback({ type: 'error', message: 'Selecione pelo menos um produto antes de confirmar.' });
+      return;
+    }
+    addProductsToTable(table.id, selectedProducts);
+    setFeedback({ type: 'success', message: `Venda confirmada para mesa ${table.mesa}. Total: R$ ${total.toFixed(2)}` });
+    setSelectedProducts([]);
+    setTimeout(() => {
+      setFeedback(null);
+      onNavigate('OpenTables', { isKioskMode, kioskFunctions });
+    }, 1200);
   };
 
   const renderProduct = ({ item }) => (
     <TouchableOpacity
-      style={styles.productCard}
+      style={[
+        styles.productCard,
+        isMobile ? styles.productCardMobile : styles.productCardDesktop,
+        { width: productCardWidth }
+      ]}
       onPress={() => handleAddProduct(item)}
     >
       <Image source={{ uri: item.imagem }} style={styles.productImage} />
@@ -165,7 +199,7 @@ export default function SellProductScreen({ table, onNavigate }) {
         <TouchableOpacity onPress={handleBack}>
           <Text style={styles.backButton}>{'<'}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Vender - Mesa {table.mesa}</Text>
+        <Text style={styles.title}>Vender - Mesa {table ? table.mesa : '?'}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -179,19 +213,36 @@ export default function SellProductScreen({ table, onNavigate }) {
         />
       </View>
 
-      <View style={styles.content}>
+      <View style={[styles.content, isMobile && styles.contentMobile]}>
+        {!table && (
+          <View style={styles.feedbackError}>
+            <Text style={[styles.feedbackText, { color: '#EF4444' }]}>Mesa não encontrada. Retorne para Mesas Abertas.</Text>
+          </View>
+        )}
+
         <View style={styles.productsSection}>
           <Text style={styles.sectionTitle}>Produtos Disponíveis</Text>
           <FlatList
             data={filteredProducts}
             keyExtractor={item => item.id}
             renderItem={renderProduct}
-            numColumns={4}
-            columnWrapperStyle={styles.productRow}
-            contentContainerStyle={styles.productGrid}
+            numColumns={numColumns}
+            columnWrapperStyle={isMobile ? styles.productRowMobile : styles.productRow}
+            contentContainerStyle={isMobile ? styles.productGridMobile : styles.productGrid}
             scrollEnabled={false}
           />
         </View>
+
+        {feedback && (
+          <View
+            style={[
+              styles.feedback,
+              feedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError
+            ]}
+          >
+            <Text style={styles.feedbackText}>{feedback.message}</Text>
+          </View>
+        )}
 
         {selectedProducts.length > 0 && (
           <View style={styles.selectedSection}>
@@ -261,6 +312,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16
   },
+  contentMobile: {
+    paddingHorizontal: 12
+  },
   productsSection: {
     marginBottom: 16
   },
@@ -273,19 +327,30 @@ const styles = StyleSheet.create({
   productGrid: {
     gap: 12
   },
+  productGridMobile: {
+    gap: 8
+  },
   productRow: {
     justifyContent: 'space-between'
   },
+  productRowMobile: {
+    justifyContent: 'space-between',
+    marginBottom: 12
+  },
   productCard: {
-    flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    alignItems: 'flex-start',
-    maxWidth: (width - 64) / 4
+    alignItems: 'flex-start'
+  },
+  productCardDesktop: {
+    minHeight: 220
+  },
+  productCardMobile: {
+    minHeight: 200
   },
   productImage: {
     width: '100%',
@@ -330,6 +395,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     paddingVertical: 8,
     borderRadius: 6
+  },
+  feedback: {
+    width: '100%',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 16
+  },
+  feedbackSuccess: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: '#10B981',
+    borderWidth: 1
+  },
+  feedbackError: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: '#EF4444',
+    borderWidth: 1
+  },
+  feedbackText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center'
   },
   selectedSection: {
     marginBottom: 16,

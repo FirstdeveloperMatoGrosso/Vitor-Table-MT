@@ -13,9 +13,10 @@ const MOCK_PRODUCTS = [
   { id: '6', name: 'Cerveja Brahma', price: 5.5 }
 ];
 
-export default function ProductListScreen({ user, onNavigate }) {
+export default function ProductListScreen({ user, onNavigate, screenParams }) {
   const [search, setSearch] = useState('');
   const [userData, setUserData] = useState(user || {});
+  const { isKioskMode = false, kioskFunctions = {} } = screenParams || {};
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -24,7 +25,7 @@ export default function ProductListScreen({ user, onNavigate }) {
   }, [search]);
 
   const handleBack = () => {
-    onNavigate('Login');
+    onNavigate('Login', { isKioskMode, kioskFunctions });
   };
 
   const handleConfirm = () => {

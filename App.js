@@ -6,11 +6,37 @@ import ProductListScreen from './src/screens/ProductListScreen';
 import OpenTablesScreen from './src/screens/OpenTablesScreen';
 import BuyChipsScreen from './src/screens/BuyChipsScreen';
 import SellProductScreen from './src/screens/SellProductScreen';
+import { TableProvider } from './src/context/TableContext';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('Home');
   const [user, setUser] = useState(null);
-  const [screenParams, setScreenParams] = useState({});
+  const [screenParams, setScreenParams] = useState(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const stored = window.localStorage.getItem('kioskFunctions');
+      const isKioskMode = window.localStorage.getItem('isKioskMode') === 'true';
+      if (stored && isKioskMode) {
+        return {
+          isKioskMode: true,
+          kioskFunctions: JSON.parse(stored)
+        };
+      }
+    } catch (error) {
+      console.warn('Erro ao restaurar modo totem:', error);
+    }
+    return {};
+  });
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem('isKioskMode', screenParams.isKioskMode ? 'true' : 'false');
+      } catch (error) {
+        console.warn('Erro ao salvar estado do modo totem:', error);
+      }
+    }
+  }, [screenParams.isKioskMode]);
 
   const handleNavigate = (screen, params = {}) => {
     if (params.user) setUser(params);
@@ -19,14 +45,16 @@ export default function App() {
   };
 
   return (
-    <>
+    <TableProvider>
       <StatusBar style="dark" />
       {currentScreen === 'Home' && <HomeScreen onNavigate={handleNavigate} />}
-      {currentScreen === 'Login' && <LoginScreen onNavigate={handleNavigate} />}
-      {currentScreen === 'Products' && <ProductListScreen user={user} onNavigate={handleNavigate} />}
-      {currentScreen === 'OpenTables' && <OpenTablesScreen onNavigate={handleNavigate} />}
-      {currentScreen === 'BuyChips' && <BuyChipsScreen onNavigate={handleNavigate} />}
-      {currentScreen === 'SellProduct' && <SellProductScreen table={screenParams.table} onNavigate={handleNavigate} />}
-    </>
+      {currentScreen === 'Login' && <LoginScreen onNavigate={handleNavigate} screenParams={screenParams} />}
+      {currentScreen === 'Products' && <ProductListScreen user={user} onNavigate={handleNavigate} screenParams={screenParams} />}
+      {currentScreen === 'OpenTables' && <OpenTablesScreen onNavigate={handleNavigate} screenParams={screenParams} />}
+      {currentScreen === 'BuyChips' && <BuyChipsScreen onNavigate={handleNavigate} screenParams={screenParams} />}
+      {currentScreen === 'SellProduct' && (
+        <SellProductScreen tableId={screenParams.tableId} onNavigate={handleNavigate} screenParams={screenParams} />
+      )}
+    </TableProvider>
   );
 }

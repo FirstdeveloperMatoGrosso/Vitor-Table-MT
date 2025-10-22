@@ -1,117 +1,77 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions, Modal, Pressable, ScrollView } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions, Modal, Pressable, ScrollView, Platform, TextInput } from 'react-native';
 import colors from '../theme/colors';
+import { useTableContext } from '../context/TableContext';
 
 const { width } = Dimensions.get('window');
 
-const MOCK_OPEN_TABLES = [
-  {
-    id: '1',
-    mesa: 5,
-    cliente: 'João Silva',
-    email: 'joao@email.com',
-    telefone: '(11) 98765-4321',
-    cpf: '123.456.789-00',
-    pessoas: 4,
-    chegada: '14:30',
-    saida: null,
-    status: 'aberta',
-    produtos: [
-      { nome: 'Cerveja Skol', quantidade: 3, preco: 15.00 },
-      { nome: 'Refrigerante', quantidade: 2, preco: 8.00 }
-    ],
-    garcons: ['Carlos', 'Ana']
-  },
-  {
-    id: '2',
-    mesa: 12,
-    cliente: 'Maria Santos',
-    email: 'maria@email.com',
-    telefone: '(11) 99876-5432',
-    cpf: '987.654.321-00',
-    pessoas: 6,
-    chegada: '13:00',
-    saida: '15:20',
-    status: 'fechada',
-    produtos: [
-      { nome: 'Cerveja Heineken', quantidade: 5, preco: 18.00 },
-      { nome: 'Chopp', quantidade: 2, preco: 25.00 },
-      { nome: 'Refrigerante', quantidade: 3, preco: 8.00 }
-    ],
-    garcons: ['Pedro', 'Carlos', 'Ana']
-  },
-  {
-    id: '3',
-    mesa: 8,
-    cliente: 'Pedro Costa',
-    email: 'pedro@email.com',
-    telefone: '(11) 97654-3210',
-    cpf: '456.789.123-00',
-    pessoas: 2,
-    chegada: '15:00',
-    saida: null,
-    status: 'aberta',
-    produtos: [
-      { nome: 'Guarana', quantidade: 1, preco: 5.50 }
-    ],
-    garcons: ['Ana']
-  },
-  {
-    id: '4',
-    mesa: 15,
-    cliente: 'Ana Oliveira',
-    email: 'ana@email.com',
-    telefone: '(11) 96543-2109',
-    cpf: '789.123.456-00',
-    pessoas: 8,
-    chegada: '12:50',
-    saida: '14:15',
-    status: 'fechada',
-    produtos: [
-      { nome: 'Cerveja Brahma', quantidade: 8, preco: 14.00 },
-      { nome: 'Refrigerante', quantidade: 4, preco: 8.00 }
-    ],
-    garcons: ['Carlos', 'Pedro']
-  },
-  {
-    id: '5',
-    mesa: 3,
-    cliente: 'Carlos Mendes',
-    email: 'carlos@email.com',
-    telefone: '(11) 95432-1098',
-    cpf: '321.654.987-00',
-    pessoas: 4,
-    chegada: '15:45',
-    saida: null,
-    status: 'aberta',
-    produtos: [
-      { nome: 'Fanta', quantidade: 2, preco: 5.50 }
-    ],
-    garcons: ['Pedro']
-  }
-];
-
-export default function OpenTablesScreen({ onNavigate }) {
+export default function OpenTablesScreen({ onNavigate, screenParams }) {
   const [isGridView, setIsGridView] = useState(false);
-  const [selectedTable, setSelectedTable] = useState(null);
+  const [selectedTableId, setSelectedTableId] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const { isKioskMode = false, kioskFunctions = {} } = screenParams || {};
+  const { tables } = useTableContext();
+
+  const orderedTables = useMemo(() => {
+    const abertas = tables.filter(table => table.status !== 'fechada');
+    const fechadas = tables.filter(table => table.status === 'fechada');
+    return [...abertas, ...fechadas];
+  }, [tables]);
+
+  const filteredTables = useMemo(() => {
+    if (!searchQuery.trim()) return orderedTables;
+    
+    const query = searchQuery.toLowerCase();
+    return orderedTables.filter(table => {
+      const searchFields = [
+        table.id.toString(),
+        table.mesa.toString(),
+        table.cliente.toLowerCase(),
+        table.cpf.toLowerCase(),
+        table.email.toLowerCase(),
+        table.telefone.toLowerCase()
+      ];
+      return searchFields.some(field => field.includes(query));
+    });
+  }, [orderedTables, searchQuery]);
+
+  const visibleTables = useMemo(() => {
+    if (Platform.OS === 'android') {
+      return filteredTables.slice(0, 3);
+    }
+    return filteredTables;
+  }, [filteredTables]);
+
+  const gridColumns = useMemo(() => {
+    if (!isGridView) return 2;
+    if (Platform.OS === 'android' && width < 768) {
+      return 2;
+    }
+    return 4;
+  }, [isGridView]);
+
+  const selectedTable = useMemo(() => {
+    if (!selectedTableId) return null;
+    return tables.find(table => table.id === selectedTableId) || null;
+  }, [selectedTableId, tables]);
 
   const handleBack = () => {
-    onNavigate('Home');
+    onNavigate('Home', { isKioskMode, kioskFunctions });
   };
 
   const handleDetail = (table) => {
-    setSelectedTable(table);
+    setSelectedTableId(table.id);
     setIsModalVisible(true);
   };
 
   const closeModal = () => {
     setIsModalVisible(false);
-    setSelectedTable(null);
+    setSelectedTableId(null);
   };
 
   const handleSellProduct = (table) => {
-    onNavigate('SellProduct', { table });
+    onNavigate('SellProduct', { tableId: table.id });
   };
 
   const renderTable = ({ item }) => (
@@ -171,13 +131,28 @@ export default function OpenTablesScreen({ onNavigate }) {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar por ID, Mesa, Nome, CPF, Email ou Telefone"
+          placeholderTextColor={colors.muted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+            <Text style={styles.clearButtonText}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       <FlatList
-        data={MOCK_OPEN_TABLES}
+        data={visibleTables}
         keyExtractor={item => item.id}
         renderItem={renderTable}
         contentContainerStyle={styles.listContent}
-        numColumns={isGridView ? 4 : 1}
-        key={isGridView ? 'grid' : 'list'}
+        numColumns={gridColumns}
+        key={isGridView ? `grid-${gridColumns}` : 'list'}
         scrollEnabled={true}
       />
 
@@ -222,6 +197,16 @@ export default function OpenTablesScreen({ onNavigate }) {
                         {produto.nome} ({produto.quantidade}x) - R$ {(produto.preco * produto.quantidade).toFixed(2)}
                       </Text>
                     ))}
+                    <View style={styles.modalTotalRow}>
+                      <Text style={styles.modalTotalLabel}>Total:</Text>
+                      <Text style={styles.modalTotalValue}>
+                        R$ {
+                          selectedTable.produtos
+                            .reduce((sum, produto) => sum + produto.preco * produto.quantidade, 0)
+                            .toFixed(2)
+                        }
+                      </Text>
+                    </View>
                   </View>
 
                   <View style={styles.modalSection}>
@@ -249,12 +234,44 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: colors.border
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: colors.text
+  },
+  clearButton: {
+    marginLeft: 8,
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  clearButtonText: {
+    fontSize: 18,
+    color: colors.muted,
+    fontWeight: '600'
   },
   backButton: {
     fontSize: 24,
@@ -284,9 +301,10 @@ const styles = StyleSheet.create({
     padding: 12,
     borderLeftWidth: 4,
     borderLeftColor: colors.primary,
-    marginRight: 0,
-    marginBottom: 16,
-    minHeight: 380,
+    marginRight: 12,
+    marginBottom: 12,
+    flex: 1,
+    minHeight: 300,
     display: 'flex',
     flexDirection: 'column'
   },
@@ -298,7 +316,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 0,
     borderTopWidth: 4,
     borderTopColor: colors.primary,
-    minHeight: 380,
+    minHeight: 300,
     display: 'flex',
     flexDirection: 'column'
   },
@@ -456,6 +474,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
     marginBottom: 4
+  },
+  modalTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border
+  },
+  modalTotalLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text
+  },
+  modalTotalValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary
   },
   modalButton: {
     backgroundColor: colors.primary,

@@ -12,11 +12,12 @@ const CHIP_PACKAGES = [
   { id: '4', amount: 500, price: 350.00, popular: false }
 ];
 
-export default function BuyChipsScreen({ onNavigate }) {
+export default function BuyChipsScreen({ onNavigate, screenParams }) {
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const { isKioskMode = false, kioskFunctions = {} } = screenParams || {};
 
   const handleBack = () => {
-    onNavigate('Home');
+    onNavigate('Home', { isKioskMode, kioskFunctions });
   };
 
   const handleBuy = () => {

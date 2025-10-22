@@ -6,12 +6,13 @@ import { formatCPF, formatPhone } from '../utils/masks';
 
 const { width } = Dimensions.get('window');
 
-export default function LoginScreen({ onNavigate }) {
+export default function LoginScreen({ onNavigate, screenParams }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [cpf, setCpf] = useState('');
   const [tableCapacity, setTableCapacity] = useState(null);
+  const { isKioskMode = false, kioskFunctions = {} } = screenParams || {};
 
   const handlePhoneChange = (text) => {
     setPhone(formatPhone(text));
@@ -45,7 +46,7 @@ export default function LoginScreen({ onNavigate }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => onNavigate('Home')} style={styles.backButtonContainer}>
+        <TouchableOpacity onPress={() => onNavigate('Home', { isKioskMode, kioskFunctions })} style={styles.backButtonContainer}>
           <Text style={styles.backButton}>{'<'}</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Abrir Mesa</Text>
