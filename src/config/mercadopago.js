@@ -23,54 +23,44 @@ export const MERCADO_PAGO_CONFIG = {
 };
 
 // Função para gerar QR Code PIX via Mercado Pago
+// Usa Vercel Serverless Function para evitar CORS
 export const generatePixQRCode = async (amount, description, customerEmail = 'customer@vitortable.com') => {
   try {
-    // Validar credenciais
-    if (MERCADO_PAGO_CONFIG.ACCESS_TOKEN.includes('YOUR_ACCESS_TOKEN') || 
-        MERCADO_PAGO_CONFIG.ACCESS_TOKEN.includes('TEST-')) {
-      console.warn('⚠️ Credenciais não configuradas ou em modo teste!');
-      console.log('📝 Configure no arquivo .env.local ou nas variáveis de ambiente do Vercel');
-    }
-
-    const response = await fetch(`${MERCADO_PAGO_CONFIG.API_URL}/payments`, {
+    // Usar serverless function (evita CORS)
+    const apiUrl = window.location.origin + '/api/generate-pix';
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${MERCADO_PAGO_CONFIG.ACCESS_TOKEN}`,
-        'X-Idempotency-Key': `${Date.now()}-${Math.random()}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        transaction_amount: parseFloat(amount),
+        amount: parseFloat(amount),
         description: description,
-        payment_method_id: 'pix',
-        payer: {
-          email: customerEmail,
-          first_name: 'Cliente',
-          last_name: 'VitorTable'
-        },
-        notification_url: MERCADO_PAGO_CONFIG.PAYMENT_CONFIG.notification_url,
-        metadata: {
-          app: 'VitorTable MT',
-          version: '1.0.0'
-        }
+        customerEmail: customerEmail
       })
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Erro Mercado Pago:', errorData);
+      console.error('Erro ao gerar PIX:', errorData);
       throw new Error(errorData.message || 'Erro ao gerar QR Code PIX');
     }
 
     const data = await response.json();
     
+    if (!data.success) {
+      throw new Error('Falha ao gerar PIX');
+    }
+    
     return {
-      qrCode: data.point_of_interaction?.transaction_data?.qr_code,
-      qrCodeBase64: data.point_of_interaction?.transaction_data?.qr_code_base64,
-      qrCodeUrl: data.point_of_interaction?.transaction_data?.ticket_url,
-      transactionId: data.id,
+      qrCode: data.qrCode,
+      qrCodeBase64: data.qrCodeBase64,
+      qrCodeUrl: data.qrCodeUrl,
+      transactionId: data.transactionId,
       status: data.status,
-      expirationDate: data.date_of_expiration,
+      expirationDate: data.expirationDate,
+      amount: data.amount,
       isMock: false
     };
   } catch (error) {
@@ -82,12 +72,10 @@ export const generatePixQRCode = async (amount, description, customerEmail = 'cu
 // Função para verificar status do pagamento
 export const checkPaymentStatus = async (transactionId) => {
   try {
-
-    const response = await fetch(`${MERCADO_PAGO_CONFIG.API_URL}/payments/${transactionId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${MERCADO_PAGO_CONFIG.ACCESS_TOKEN}`
-      }
+    const apiUrl = window.location.origin + `/api/check-payment?transactionId=${transactionId}`;
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET'
     });
 
     if (!response.ok) {
@@ -95,11 +83,16 @@ export const checkPaymentStatus = async (transactionId) => {
     }
 
     const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error('Falha ao verificar pagamento');
+    }
+    
     return {
       status: data.status,
-      statusDetail: data.status_detail,
-      amount: data.transaction_amount,
-      dateApproved: data.date_approved
+      statusDetail: data.statusDetail,
+      amount: data.amount,
+      dateApproved: data.dateApproved
     };
   } catch (error) {
     console.error('Erro ao verificar pagamento:', error);
