@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, Image } from 'react-native';
 import colors from '../theme/colors';
 
-export default function PixQRCode({ qrCode, qrCodeUrl, transactionId, amount, onCopy }) {
+export default function PixQRCode({ qrCode, qrCodeUrl, qrCodeBase64, transactionId, amount, onCopy }) {
   const handleCopyQRCode = () => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(qrCode);
@@ -15,12 +15,18 @@ export default function PixQRCode({ qrCode, qrCodeUrl, transactionId, amount, on
     <View style={styles.container}>
       {/* QR Code Visual */}
       <View style={styles.qrCodeBox}>
-        {qrCodeUrl ? (
-          <View style={styles.qrPlaceholder}>
-            <Text style={styles.qrIcon}>📱</Text>
-            <Text style={styles.qrText}>QR Code PIX</Text>
-            <Text style={styles.qrSubtext}>Escaneie para pagar</Text>
-          </View>
+        {qrCodeBase64 ? (
+          <Image
+            source={{ uri: `data:image/png;base64,${qrCodeBase64}` }}
+            style={styles.qrImage}
+            resizeMode="contain"
+          />
+        ) : qrCodeUrl ? (
+          <Image
+            source={{ uri: qrCodeUrl }}
+            style={styles.qrImage}
+            resizeMode="contain"
+          />
         ) : (
           <View style={styles.qrPlaceholder}>
             <Text style={styles.qrIcon}>⏳</Text>
@@ -84,6 +90,10 @@ const styles = StyleSheet.create({
   qrPlaceholder: {
     alignItems: 'center',
     gap: 8
+  },
+  qrImage: {
+    width: 180,
+    height: 180
   },
   qrIcon: {
     fontSize: 48

@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Dimensions, Modal, TextInput, Pressable, Scroll
 import PrimaryButton from '../components/PrimaryButton';
 import colors from '../theme/colors';
 import { useTableContext } from '../context/TableContext';
-import { generatePixQRCode } from '../config/mercadopago';
+import { generatePixQRCode, checkPaymentStatus } from '../config/mercadopago';
+import PixQRCode from '../components/PixQRCode';
 
 const { width } = Dimensions.get('window');
 
@@ -33,7 +34,15 @@ export default function HomeScreen({ onNavigate }) {
   const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
   const [chipTicketData, setChipTicketData] = useState(null);
   const [pixQrCode, setPixQrCode] = useState(null);
+  const [pixQrCodeBase64, setPixQrCodeBase64] = useState(null);
+  const [pixQrCodeUrl, setPixQrCodeUrl] = useState(null);
+  const [pixExpiration, setPixExpiration] = useState(null);
+  const [pixTimeLeft, setPixTimeLeft] = useState(null);
+  const [pixExpired, setPixExpired] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null);
   const [isLoadingPix, setIsLoadingPix] = useState(false);
+  const countdownIntervalRef = useRef(null);
+  const statusIntervalRef = useRef(null);
 
   const [kioskFunctions, setKioskFunctions] = useState(() => {
     if (typeof window === 'undefined') {
@@ -86,6 +95,89 @@ export default function HomeScreen({ onNavigate }) {
     }
   }, []);
 
+  const clearPixIntervals = () => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    if (statusIntervalRef.current) {
+      clearInterval(statusIntervalRef.current);
+      statusIntervalRef.current = null;
+    }
+  };
+
+  const resetPixState = () => {
+    setPixQrCode(null);
+    setPixQrCodeBase64(null);
+    setPixQrCodeUrl(null);
+    setPixExpiration(null);
+    setPixTimeLeft(null);
+    setPixExpired(false);
+    setPaymentStatus(null);
+    clearPixIntervals();
+  };
+
+  const startPixCountdown = (expirationTimestamp) => {
+    if (!expirationTimestamp) return;
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+    const updateTime = () => {
+      const diff = expirationTimestamp - Date.now();
+      if (diff <= 0) {
+        setPixTimeLeft('00:00');
+        setPixExpired(true);
+        setPaymentStatus((prev) => (prev === 'approved' ? prev : 'expired'));
+        clearPixIntervals();
+        return;
+      }
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setPixTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+    };
+    updateTime();
+    countdownIntervalRef.current = setInterval(updateTime, 1000);
+  };
+
+  const startPixStatusPolling = (transactionId) => {
+    if (!transactionId) return;
+    if (statusIntervalRef.current) {
+      clearInterval(statusIntervalRef.current);
+    }
+    const poll = async () => {
+      const statusData = await checkPaymentStatus(transactionId);
+      if (!statusData) return;
+      setPaymentStatus(statusData.status);
+      if (statusData.status === 'approved') {
+        clearPixIntervals();
+        setChipTicketData((prev) => (prev ? { ...prev, status: statusData.status, approvalDate: statusData.dateApproved } : prev));
+        setIsPixPaymentModalVisible(false);
+        setIsBuyChipsModalVisible(false);
+        setIsSuccessModalVisible(true);
+        resetPixState();
+      }
+      if (statusData.status === 'rejected' || statusData.status === 'cancelled') {
+        setPixExpired(true);
+        clearPixIntervals();
+        setChipTicketData((prev) => (prev ? { ...prev, status: statusData.status } : prev));
+      }
+    };
+    poll();
+    statusIntervalRef.current = setInterval(poll, 5000);
+  };
+
+  useEffect(() => {
+    return () => {
+      clearPixIntervals();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isPixPaymentModalVisible) {
+      clearPixIntervals();
+    }
+  }, [isPixPaymentModalVisible]);
+
   // Gerar PIX automaticamente quando o modal abrir
   useEffect(() => {
     const generatePix = async () => {
@@ -99,6 +191,14 @@ export default function HomeScreen({ onNavigate }) {
           
           if (pixData && pixData.qrCode) {
             setPixQrCode(pixData.qrCode);
+            setPixQrCodeBase64(pixData.qrCodeBase64 || null);
+            setPixQrCodeUrl(pixData.qrCodeUrl || null);
+            const expirationTimestamp = pixData.expirationDate ? new Date(pixData.expirationDate).getTime() : Date.now() + 15 * 60 * 1000;
+            setPixExpiration(expirationTimestamp);
+            setPixExpired(false);
+            setPaymentStatus(pixData.status || 'pending');
+            startPixCountdown(expirationTimestamp);
+            startPixStatusPolling(pixData.transactionId);
             
             const ticketId = 'CHIP-' + Date.now().toString().slice(-8);
             const securityCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -112,7 +212,8 @@ export default function HomeScreen({ onNavigate }) {
               securityCode: securityCode,
               qrCode: pixData.qrCode,
               transactionId: pixData.transactionId,
-              isMock: pixData.isMock
+              isMock: pixData.isMock,
+              expirationDate: pixData.expirationDate
             });
           } else {
             Alert.alert('Erro', 'Não foi possível gerar o QR Code PIX. Verifique suas credenciais do Mercado Pago.');
@@ -698,54 +799,54 @@ Consulta realizada via VitorTable MT
             <View style={styles.chipsRow}>
               <Pressable
                 style={[styles.chipsPackage, styles.chipsPackageHalf, selectedChipsPackage?.id === '1' && styles.chipsPackageSelected]}
-                onPress={() => setSelectedChipsPackage({ id: '1', amount: 50, price: 50.00 })}
+                onPress={() => setSelectedChipsPackage({ id: '1', amount: 50, price: 2.50 })}
               >
                 <Text style={styles.chipsPackageText}>50 Saldo</Text>
-                <Text style={styles.chipsPackagePrice}>R$ 50,00</Text>
+                <Text style={styles.chipsPackagePrice}>R$ 2,50</Text>
               </Pressable>
               <Pressable
                 style={[styles.chipsPackage, styles.chipsPackageHalf, selectedChipsPackage?.id === '2' && styles.chipsPackageSelected]}
-                onPress={() => setSelectedChipsPackage({ id: '2', amount: 100, price: 90.00 })}
+                onPress={() => setSelectedChipsPackage({ id: '2', amount: 100, price: 5.00 })}
               >
                 <View style={styles.popularBadge}>
                   <Text style={styles.popularText}>Popular</Text>
                 </View>
                 <Text style={styles.chipsPackageText}>100 Saldo</Text>
-                <Text style={styles.chipsPackagePrice}>R$ 90,00</Text>
+                <Text style={styles.chipsPackagePrice}>R$ 5,00</Text>
               </Pressable>
             </View>
 
             <View style={styles.chipsRow}>
               <Pressable
                 style={[styles.chipsPackage, styles.chipsPackageHalf, selectedChipsPackage?.id === '3' && styles.chipsPackageSelected]}
-                onPress={() => setSelectedChipsPackage({ id: '3', amount: 200, price: 160.00 })}
+                onPress={() => setSelectedChipsPackage({ id: '3', amount: 200, price: 10.00 })}
               >
                 <Text style={styles.chipsPackageText}>200 Saldo</Text>
-                <Text style={styles.chipsPackagePrice}>R$ 160,00</Text>
+                <Text style={styles.chipsPackagePrice}>R$ 10,00</Text>
               </Pressable>
               <Pressable
                 style={[styles.chipsPackage, styles.chipsPackageHalf, selectedChipsPackage?.id === '4' && styles.chipsPackageSelected]}
-                onPress={() => setSelectedChipsPackage({ id: '4', amount: 500, price: 350.00 })}
+                onPress={() => setSelectedChipsPackage({ id: '4', amount: 500, price: 25.00 })}
               >
                 <Text style={styles.chipsPackageText}>500 Saldo</Text>
-                <Text style={styles.chipsPackagePrice}>R$ 350,00</Text>
+                <Text style={styles.chipsPackagePrice}>R$ 25,00</Text>
               </Pressable>
             </View>
 
             <View style={styles.chipsRow}>
               <Pressable
                 style={[styles.chipsPackage, styles.chipsPackageHalf, selectedChipsPackage?.id === '5' && styles.chipsPackageSelected]}
-                onPress={() => setSelectedChipsPackage({ id: '5', amount: 1000, price: 650.00 })}
+                onPress={() => setSelectedChipsPackage({ id: '5', amount: 1000, price: 50.00 })}
               >
                 <Text style={styles.chipsPackageText}>1000 Saldo</Text>
-                <Text style={styles.chipsPackagePrice}>R$ 650,00</Text>
+                <Text style={styles.chipsPackagePrice}>R$ 50,00</Text>
               </Pressable>
               <Pressable
                 style={[styles.chipsPackage, styles.chipsPackageHalf, selectedChipsPackage?.id === '6' && styles.chipsPackageSelected]}
-                onPress={() => setSelectedChipsPackage({ id: '6', amount: 2000, price: 1200.00 })}
+                onPress={() => setSelectedChipsPackage({ id: '6', amount: 2000, price: 100.00 })}
               >
                 <Text style={styles.chipsPackageText}>2000 Saldo</Text>
-                <Text style={styles.chipsPackagePrice}>R$ 1.200,00</Text>
+                <Text style={styles.chipsPackagePrice}>R$ 100,00</Text>
               </Pressable>
             </View>
 
@@ -787,10 +888,23 @@ Consulta realizada via VitorTable MT
                   <Text style={styles.pixQrSubtext}>Aguarde um momento</Text>
                 </View>
               ) : pixQrCode ? (
-                <View style={styles.pixQrBox}>
-                  <Text style={styles.pixQrIcon}>✅</Text>
-                  <Text style={styles.pixQrText}>QR Code Gerado!</Text>
-                  <Text style={styles.pixQrSubtext}>Escaneie para pagar</Text>
+                <View style={styles.pixQrContent}>
+                  <PixQRCode
+                    qrCode={pixQrCode}
+                    qrCodeBase64={pixQrCodeBase64}
+                    qrCodeUrl={pixQrCodeUrl}
+                    transactionId={chipTicketData?.transactionId}
+                    amount={selectedChipsPackage?.price}
+                  />
+                  {pixTimeLeft && !pixExpired && (
+                    <Text style={styles.pixCountdown}>Expira em {pixTimeLeft}</Text>
+                  )}
+                  {pixExpired && (
+                    <Text style={styles.pixExpiredText}>Pagamento expirado. Gere novamente.</Text>
+                  )}
+                  {paymentStatus && (
+                    <Text style={styles.pixStatusText}>Status: {paymentStatus}</Text>
+                  )}
                   {chipTicketData?.isMock && (
                     <Text style={styles.pixMockWarning}>⚠️ Modo Teste</Text>
                   )}
@@ -837,24 +951,24 @@ Consulta realizada via VitorTable MT
                 style={[styles.modalButton, styles.modalButtonSecondary]} 
                 onPress={() => {
                   setIsPixPaymentModalVisible(false);
-                  setPixQrCode(null);
+                  resetPixState();
                 }}
               >
                 <Text style={styles.modalButtonTextSecondary}>Cancelar</Text>
               </Pressable>
               <Pressable
-                style={[styles.modalButton, styles.modalButtonPrimary, (isLoadingPix || !pixQrCode) && styles.modalButtonDisabled]}
+                style={[styles.modalButton, styles.modalButtonPrimary, (isLoadingPix || !pixQrCode || paymentStatus !== 'approved') && styles.modalButtonDisabled]}
                 onPress={() => {
                   if (pixQrCode && chipTicketData) {
                     setIsPixPaymentModalVisible(false);
                     setIsBuyChipsModalVisible(false);
                     setIsSuccessModalVisible(true);
-                    setPixQrCode(null);
+                    resetPixState();
                   }
                 }}
               >
                 <Text style={styles.modalButtonTextPrimary}>
-                  {isLoadingPix ? 'Gerando...' : 'Confirmar Pagamento'}
+                  {paymentStatus === 'approved' ? 'Confirmar Pagamento' : 'Aguardando pagamento'}
                 </Text>
               </Pressable>
             </View>
