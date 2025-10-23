@@ -26,16 +26,10 @@ export const MERCADO_PAGO_CONFIG = {
 export const generatePixQRCode = async (amount, description, customerEmail = 'customer@vitortable.com') => {
   try {
     // Validar credenciais
-    if (MERCADO_PAGO_CONFIG.ACCESS_TOKEN.includes('YOUR_ACCESS_TOKEN')) {
-      console.warn('⚠️ Configure suas credenciais do Mercado Pago!');
-      // Retornar mock para desenvolvimento
-      return {
-        qrCode: '00020126580014br.gov.bcb.pix0136' + Math.random().toString(36).substring(7),
-        qrCodeUrl: 'https://via.placeholder.com/300x300.png?text=QR+Code+PIX',
-        transactionId: 'MOCK-' + Date.now(),
-        status: 'pending',
-        isMock: true
-      };
+    if (MERCADO_PAGO_CONFIG.ACCESS_TOKEN.includes('YOUR_ACCESS_TOKEN') || 
+        MERCADO_PAGO_CONFIG.ACCESS_TOKEN.includes('TEST-')) {
+      console.warn('⚠️ Credenciais não configuradas ou em modo teste!');
+      console.log('📝 Configure no arquivo .env.local ou nas variáveis de ambiente do Vercel');
     }
 
     const response = await fetch(`${MERCADO_PAGO_CONFIG.API_URL}/payments`, {
@@ -88,9 +82,6 @@ export const generatePixQRCode = async (amount, description, customerEmail = 'cu
 // Função para verificar status do pagamento
 export const checkPaymentStatus = async (transactionId) => {
   try {
-    if (transactionId.startsWith('MOCK-')) {
-      return { status: 'approved', isMock: true };
-    }
 
     const response = await fetch(`${MERCADO_PAGO_CONFIG.API_URL}/payments/${transactionId}`, {
       method: 'GET',
@@ -119,9 +110,6 @@ export const checkPaymentStatus = async (transactionId) => {
 // Função para cancelar pagamento
 export const cancelPayment = async (transactionId) => {
   try {
-    if (transactionId.startsWith('MOCK-')) {
-      return { success: true, isMock: true };
-    }
 
     const response = await fetch(`${MERCADO_PAGO_CONFIG.API_URL}/payments/${transactionId}`, {
       method: 'PUT',
