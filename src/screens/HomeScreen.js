@@ -419,16 +419,36 @@ Consulta realizada via VitorTable MT
         <Text style={styles.footerQuote}>As grandes ideias surgem da observacao dos pequenos detalhes.</Text>
 
         <View style={styles.contactSection}>
-          <Text style={styles.contactTitle}>Entre em Contato</Text>
+          <Text style={styles.contactTitle}>📞 Entre em Contato</Text>
           <Pressable onPress={handleOpenKioskModal}>
-            <Text style={styles.contactCompany}>Rodrigo Dev MT</Text>
+            <Text style={styles.contactCompany}>🚀 Rodrigo Dev MT</Text>
           </Pressable>
-          <Text style={styles.contactText}>Mato Grosso, Brasil</Text>
-          <Text style={styles.contactHighlight}>(66) 99225-8469  ·  (45) 99104-6021</Text>
-          <Text style={styles.contactText}>developer@rodrigodevmt.com.br</Text>
-          <Text style={styles.contactText}>rodrigodev@yahoo.com</Text>
-          <Text style={styles.contactSchedule}>Segunda - Sexta: 8h às 18h</Text>
-          <Text style={styles.contactSchedule}>Sábado: 8h às 12h</Text>
+          
+          <View style={styles.contactItem}>
+            <Text style={styles.contactIcon}>📍</Text>
+            <Text style={styles.contactLocation}>Mato Grosso, Brasil</Text>
+          </View>
+          
+          <View style={styles.contactItem}>
+            <Text style={styles.contactIcon}>📱</Text>
+            <Text style={styles.contactPhone}>(66) 99225-8469  ·  (45) 99104-6021</Text>
+          </View>
+          
+          <View style={styles.contactItem}>
+            <Text style={styles.contactIcon}>📧</Text>
+            <View style={styles.emailContainer}>
+              <Text style={styles.contactEmail}>developer@rodrigodevmt.com.br</Text>
+              <Text style={styles.contactEmail}>rodrigodev@yahoo.com</Text>
+            </View>
+          </View>
+          
+          <View style={styles.contactItem}>
+            <Text style={styles.contactIcon}>🕒</Text>
+            <View style={styles.scheduleContainer}>
+              <Text style={styles.contactSchedule}>Segunda - Sexta: 8h às 18h</Text>
+              <Text style={styles.contactSchedule}>Sábado: 8h às 12h</Text>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -1147,22 +1167,47 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.primary
   },
-  contactText: {
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+    paddingHorizontal: 8
+  },
+  contactIcon: {
+    fontSize: 14,
+    marginRight: 8,
+    marginTop: 1,
+    width: 20
+  },
+  contactLocation: {
+    fontSize: 12,
+    color: colors.accent,
+    fontWeight: '600',
+    flex: 1
+  },
+  contactPhone: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '700',
+    flex: 1
+  },
+  emailContainer: {
+    flex: 1
+  },
+  contactEmail: {
     fontSize: 11,
-    color: colors.muted,
-    textAlign: 'center',
+    color: colors.email,
+    fontWeight: '500',
     marginBottom: 2
   },
-  contactHighlight: {
-    fontSize: 12,
-    color: colors.text,
-    fontWeight: '600',
-    textAlign: 'center'
+  scheduleContainer: {
+    flex: 1
   },
   contactSchedule: {
     fontSize: 11,
-    color: colors.text,
-    textAlign: 'center'
+    color: colors.time,
+    fontWeight: '600',
+    marginBottom: 1
   },
   modalOverlay: {
     flex: 1,
