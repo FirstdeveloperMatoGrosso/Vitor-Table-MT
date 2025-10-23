@@ -28,6 +28,12 @@ export default function HomeScreen({ onNavigate }) {
   const [kioskPassword, setKioskPassword] = useState('');
   const [kioskPasswordError, setKioskPasswordError] = useState('');
   const [isKioskMode, setIsKioskMode] = useState(false);
+  
+  const handleCloseKioskModal = () => {
+    setKioskModalVisible(false);
+    setKioskPassword('');
+    setKioskPasswordError('');
+  };
   const [isBuyChipsModalVisible, setIsBuyChipsModalVisible] = useState(false);
   const [selectedChipsPackage, setSelectedChipsPackage] = useState(null);
   const [isPixPaymentModalVisible, setIsPixPaymentModalVisible] = useState(false);
@@ -465,59 +471,62 @@ export default function HomeScreen({ onNavigate }) {
 
             {kioskPasswordError ? <Text style={styles.modalError}>{kioskPasswordError}</Text> : null}
 
-            <ScrollView style={styles.kioskFunctionsScroll} contentContainerStyle={styles.kioskFunctionsContent}>
+            <View style={styles.kioskFunctionsContainer}>
               <Text style={styles.kioskSectionTitle}>Funções Ativas</Text>
+              <View style={styles.kioskGrid}>
+                <Pressable
+                  style={[styles.kioskFunctionItem, kioskFunctions.openTable && styles.kioskFunctionActive]}
+                  onPress={() => toggleKioskFunction('openTable')}
+                >
+                  <View style={styles.kioskCheckbox}>
+                    {kioskFunctions.openTable && <Text style={styles.kioskCheckmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.kioskFunctionText}>Abrir Mesa</Text>
+                </Pressable>
 
-              <Pressable
-                style={[styles.kioskFunctionItem, kioskFunctions.openTable && styles.kioskFunctionActive]}
-                onPress={() => toggleKioskFunction('openTable')}
-              >
-                <View style={styles.kioskCheckbox}>
-                  {kioskFunctions.openTable && <Text style={styles.kioskCheckmark}>✓</Text>}
-                </View>
-                <Text style={styles.kioskFunctionText}>Abrir Mesa</Text>
-              </Pressable>
+                <Pressable
+                  style={[styles.kioskFunctionItem, kioskFunctions.openTables && styles.kioskFunctionActive]}
+                  onPress={() => toggleKioskFunction('openTables')}
+                >
+                  <View style={styles.kioskCheckbox}>
+                    {kioskFunctions.openTables && <Text style={styles.kioskCheckmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.kioskFunctionText}>Mesas Abertas</Text>
+                </Pressable>
 
-              <Pressable
-                style={[styles.kioskFunctionItem, kioskFunctions.openTables && styles.kioskFunctionActive]}
-                onPress={() => toggleKioskFunction('openTables')}
-              >
-                <View style={styles.kioskCheckbox}>
-                  {kioskFunctions.openTables && <Text style={styles.kioskCheckmark}>✓</Text>}
-                </View>
-                <Text style={styles.kioskFunctionText}>Mesas Abertas</Text>
-              </Pressable>
+                <Pressable
+                  style={[styles.kioskFunctionItem, kioskFunctions.buyChips && styles.kioskFunctionActive]}
+                  onPress={() => toggleKioskFunction('buyChips')}
+                >
+                  <View style={styles.kioskCheckbox}>
+                    {kioskFunctions.buyChips && <Text style={styles.kioskCheckmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.kioskFunctionText}>Comprar Fichas</Text>
+                </Pressable>
 
-              <Pressable
-                style={[styles.kioskFunctionItem, kioskFunctions.buyChips && styles.kioskFunctionActive]}
-                onPress={() => toggleKioskFunction('buyChips')}
-              >
-                <View style={styles.kioskCheckbox}>
-                  {kioskFunctions.buyChips && <Text style={styles.kioskCheckmark}>✓</Text>}
-                </View>
-                <Text style={styles.kioskFunctionText}>Comprar Fichas</Text>
-              </Pressable>
-
-              <Pressable
-                style={[styles.kioskFunctionItem, kioskFunctions.reserve && styles.kioskFunctionActive]}
-                onPress={() => toggleKioskFunction('reserve')}
-              >
-                <View style={styles.kioskCheckbox}>
-                  {kioskFunctions.reserve && <Text style={styles.kioskCheckmark}>✓</Text>}
-                </View>
-                <Text style={styles.kioskFunctionText}>Reserva de Mesa</Text>
-              </Pressable>
-
-              <Pressable
-                style={[styles.kioskFunctionItem, kioskFunctions.consumption && styles.kioskFunctionActive]}
-                onPress={() => toggleKioskFunction('consumption')}
-              >
-                <View style={styles.kioskCheckbox}>
-                  {kioskFunctions.consumption && <Text style={styles.kioskCheckmark}>✓</Text>}
-                </View>
-                <Text style={styles.kioskFunctionText}>Ver Consumo</Text>
-              </Pressable>
-            </ScrollView>
+                <Pressable
+                  style={[styles.kioskFunctionItem, kioskFunctions.reserve && styles.kioskFunctionActive]}
+                  onPress={() => toggleKioskFunction('reserve')}
+                >
+                  <View style={styles.kioskCheckbox}>
+                    {kioskFunctions.reserve && <Text style={styles.kioskCheckmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.kioskFunctionText}>Reservar Mesa</Text>
+                </Pressable>
+              </View>
+              
+              <View style={styles.kioskGrid}>
+                <Pressable
+                  style={[styles.kioskFunctionItem, kioskFunctions.consumption && styles.kioskFunctionActive]}
+                  onPress={() => toggleKioskFunction('consumption')}
+                >
+                  <View style={styles.kioskCheckbox}>
+                    {kioskFunctions.consumption && <Text style={styles.kioskCheckmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.kioskFunctionText}>Ver Consumo</Text>
+                </Pressable>
+              </View>
+            </View>
 
             <View style={styles.modalActions}>
               <Pressable style={[styles.modalButton, styles.modalButtonSecondary]} onPress={handleCloseKioskModal}>
@@ -694,6 +703,51 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     gap: 12
+  },
+  kioskFunctionsContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  kioskGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  kioskFunctionItem: {
+    width: '24%',
+    minWidth: 140,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  kioskFunctionActive: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#90caf9',
+  },
+  kioskCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#999',
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  kioskCheckmark: {
+    color: '#1976d2',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  kioskFunctionText: {
+    fontSize: 13,
+    color: '#333',
   },
   modalTitle: {
     fontSize: 18,
