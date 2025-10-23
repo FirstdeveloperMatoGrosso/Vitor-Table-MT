@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
 import HomeScreen from './src/screens/HomeScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import ProductListScreen from './src/screens/ProductListScreen';
