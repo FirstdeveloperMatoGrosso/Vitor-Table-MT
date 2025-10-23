@@ -460,9 +460,9 @@ Consulta realizada via VitorTable MT
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, styles.reserveContainer]}>
             <Text style={styles.modalTitle}>Reserva de Mesa</Text>
-            <Text style={styles.modalSubtitle}>Informe os dados do cliente e selecione uma mesa disponível</Text>
+            <Text style={styles.modalSubtitle}>Informe os dados do cliente</Text>
 
-            <ScrollView contentContainerStyle={styles.reserveContent}>
+            <View style={styles.reserveContent}>
               <View style={styles.modalField}>
                 <Text style={styles.modalLabel}>Nome Completo</Text>
                 <TextInput
@@ -533,7 +533,7 @@ Consulta realizada via VitorTable MT
               </View>
 
               {reserveError ? <Text style={styles.modalError}>{reserveError}</Text> : null}
-            </ScrollView>
+            </View>
 
             <View style={styles.modalActions}>
               <Pressable style={[styles.modalButton, styles.modalButtonSecondary]} onPress={handleCloseReserveModal}>
@@ -1143,7 +1143,7 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   modalField: {
-    gap: 6
+    gap: 4
   },
   modalLabel: {
     fontSize: 12,
@@ -1153,9 +1153,9 @@ const styles = StyleSheet.create({
   modalInput: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     fontSize: 13,
     color: colors.text
   },
@@ -1211,14 +1211,18 @@ const styles = StyleSheet.create({
     fontWeight: '600'
   },
   reserveContainer: {
-    maxHeight: width > 600 ? 520 : undefined
+    maxHeight: '90vh',
+    width: width > 600 ? 500 : '90%'
   },
   reserveContent: {
-    gap: 12
+    gap: 8,
+    paddingVertical: 8
   },
   availableTablesSection: {
-    marginTop: 12,
-    gap: 8
+    marginTop: 8,
+    gap: 6,
+    maxHeight: 120,
+    overflow: 'hidden'
   },
   availableTitle: {
     fontSize: 13,
@@ -1227,8 +1231,8 @@ const styles = StyleSheet.create({
   },
   availableTableItem: {
     backgroundColor: colors.background,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 6,
+    padding: 8,
     borderWidth: 1,
     borderColor: colors.border
   },
