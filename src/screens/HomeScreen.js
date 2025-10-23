@@ -881,69 +881,77 @@ Consulta realizada via VitorTable MT
             <Text style={styles.modalSubtitle}>Escaneie o QR Code para pagar</Text>
 
             <View style={styles.pixQrContainer}>
-              {isLoadingPix ? (
-                <View style={styles.pixQrBox}>
-                  <Text style={styles.pixQrIcon}>⏳</Text>
-                  <Text style={styles.pixQrText}>Gerando QR Code...</Text>
-                  <Text style={styles.pixQrSubtext}>Aguarde um momento</Text>
-                </View>
-              ) : pixQrCode ? (
-                <View style={styles.pixQrContent}>
-                  <PixQRCode
-                    qrCode={pixQrCode}
-                    qrCodeBase64={pixQrCodeBase64}
-                    qrCodeUrl={pixQrCodeUrl}
-                    transactionId={chipTicketData?.transactionId}
-                    amount={selectedChipsPackage?.price}
-                  />
-                  {pixTimeLeft && !pixExpired && (
-                    <Text style={styles.pixCountdown}>Expira em {pixTimeLeft}</Text>
-                  )}
-                  {pixExpired && (
-                    <Text style={styles.pixExpiredText}>Pagamento expirado. Gere novamente.</Text>
-                  )}
-                  {paymentStatus && (
-                    <Text style={styles.pixStatusText}>Status: {paymentStatus}</Text>
-                  )}
-                  {chipTicketData?.isMock && (
-                    <Text style={styles.pixMockWarning}>⚠️ Modo Teste</Text>
-                  )}
-                </View>
-              ) : (
-                <View style={styles.pixQrBox}>
-                  <Text style={styles.pixQrIcon}>📱</Text>
-                  <Text style={styles.pixQrText}>Preparando...</Text>
-                </View>
-              )}
-            </View>
-
-            {pixQrCode && (
-              <View style={styles.pixCodeContainer}>
-                <Text style={styles.pixCodeLabel}>Código PIX (Copia e Cola)</Text>
-                <View style={styles.pixCodeBox}>
-                  <Text style={styles.pixCodeText} numberOfLines={2}>
-                    {pixQrCode.substring(0, 60)}...
-                  </Text>
-                </View>
-                <Pressable 
-                  style={styles.pixCopyButton}
-                  onPress={() => {
-                    if (navigator.clipboard) {
-                      navigator.clipboard.writeText(pixQrCode);
-                      Alert.alert('Sucesso', 'Código PIX copiado!');
-                    }
-                  }}
-                >
-                  <Text style={styles.pixCopyButtonText}>📋 Copiar Código</Text>
-                </Pressable>
+              {/* Coluna da Esquerda - QR Code */}
+              <View style={styles.pixQrColumn}>
+                {isLoadingPix ? (
+                  <View style={styles.pixQrBox}>
+                    <Text style={styles.pixQrIcon}>⏳</Text>
+                    <Text style={styles.pixQrText}>Gerando QR Code...</Text>
+                    <Text style={styles.pixQrSubtext}>Aguarde um momento</Text>
+                  </View>
+                ) : pixQrCode ? (
+                  <View style={styles.pixQrContent}>
+                    <PixQRCode
+                      qrCode={pixQrCode}
+                      qrCodeBase64={pixQrCodeBase64}
+                      qrCodeUrl={pixQrCodeUrl}
+                      transactionId={chipTicketData?.transactionId}
+                      amount={selectedChipsPackage?.price}
+                    />
+                    {pixTimeLeft && !pixExpired && (
+                      <Text style={styles.pixCountdown}>Expira em {pixTimeLeft}</Text>
+                    )}
+                    {pixExpired && (
+                      <Text style={styles.pixExpiredText}>Pagamento expirado. Gere novamente.</Text>
+                    )}
+                    {paymentStatus && (
+                      <Text style={styles.pixStatusText}>Status: {paymentStatus}</Text>
+                    )}
+                    {chipTicketData?.isMock && (
+                      <Text style={styles.pixMockWarning}>⚠️ Modo Teste</Text>
+                    )}
+                  </View>
+                ) : (
+                  <View style={styles.pixQrBox}>
+                    <Text style={styles.pixQrIcon}>📱</Text>
+                    <Text style={styles.pixQrText}>Preparando...</Text>
+                  </View>
+                )}
               </View>
-            )}
 
-            <View style={styles.pixInfoContainer}>
-              <Text style={styles.pixLabel}>Valor:</Text>
-              <Text style={styles.pixValue}>R$ {selectedChipsPackage?.price.toFixed(2)}</Text>
-              <Text style={styles.pixLabel}>Saldo:</Text>
-              <Text style={styles.pixValue}>{selectedChipsPackage?.amount}</Text>
+              {/* Coluna da Direita - Informações e Código PIX */}
+              <View style={styles.pixQrColumn}>
+                <View style={styles.pixInfoContainer}>
+                  <Text style={styles.pixLabel}>Valor:</Text>
+                  <Text style={[styles.pixValue, { fontSize: 18, fontWeight: 'bold' }]}>R$ {selectedChipsPackage?.price.toFixed(2)}</Text>
+                  <Text style={styles.pixLabel}>Saldo em Fichas:</Text>
+                  <Text style={[styles.pixValue, { fontSize: 18, fontWeight: 'bold' }]}>{selectedChipsPackage?.amount}</Text>
+                  <Text style={[styles.pixLabel, { marginTop: 8 }]}>ID da Transação:</Text>
+                  <Text style={styles.pixValue}>{chipTicketData?.transactionId || '--'}</Text>
+                </View>
+
+                {pixQrCode && (
+                  <View style={styles.pixCodeContainer}>
+                    <Text style={styles.pixCodeLabel}>Código PIX (Copia e Cola)</Text>
+                    <View style={styles.pixCodeBox}>
+                      <Text style={styles.pixCodeText} numberOfLines={2}>
+                        {pixQrCode.substring(0, 60)}...
+                      </Text>
+                    </View>
+                    <Pressable 
+                      style={styles.pixCopyButton}
+                      onPress={() => {
+                        if (navigator.clipboard) {
+                          navigator.clipboard.writeText(pixQrCode);
+                          Alert.alert('Sucesso', 'Código PIX copiado!');
+                        }
+                      }}
+                    >
+                      <Text style={styles.pixCopyButtonText}>📋 Copiar Código</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
             </View>
 
             <View style={styles.modalActions}>
@@ -1332,7 +1340,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 800,  
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
@@ -1673,8 +1681,21 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   pixQrContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginVertical: 16,
+    gap: 16,
+  },
+  pixQrColumn: {
+    flex: 1,
+    minWidth: 300,
+    maxWidth: '100%',
+    gap: 16,
+  },
+  pixQrContent: {
+    width: '100%',
     alignItems: 'center',
-    marginVertical: 16
   },
   pixQrBox: {
     width: 180,
