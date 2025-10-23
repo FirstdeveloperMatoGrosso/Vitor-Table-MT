@@ -29,22 +29,80 @@ export const generatePixQRCode = async (amount, description, customerEmail = 'cu
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     
     if (isLocal) {
-      // Modo desenvolvimento: usar mock ou API direta (com CORS desabilitado)
-      console.warn('🔧 Modo desenvolvimento: Gerando PIX mock');
+      // Modo desenvolvimento: tentar API direta (precisa de credenciais configuradas)
+      console.warn('🔧 Modo desenvolvimento: Tentando gerar PIX real');
       
-      // Simular delay de API
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      return {
-        qrCode: '00020126580014br.gov.bcb.pix0136' + Math.random().toString(36).substring(7),
-        qrCodeBase64: null,
-        qrCodeUrl: 'https://via.placeholder.com/300x300.png?text=QR+Code+PIX+Mock',
-        transactionId: 'DEV-' + Date.now(),
-        status: 'pending',
-        expirationDate: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
-        amount: parseFloat(amount),
-        isMock: true
-      };
+      // Verificar se tem credenciais configuradas
+      if (!MERCADO_PAGO_CONFIG.ACCESS_TOKEN || MERCADO_PAGO_CONFIG.ACCESS_TOKEN.includes('YOUR_ACCESS_TOKEN')) {
+        console.error('❌ Credenciais do Mercado Pago não configuradas!');
+        console.log('📝 Configure no arquivo .env.local:');
+        console.log('REACT_APP_MERCADO_PAGO_ACCESS_TOKEN=TEST-seu-token-aqui');
+        
+        // Retornar mock como fallback
+        return {
+          qrCode: '00020126580014br.gov.bcb.pix0136' + Math.random().toString(36).substring(7),
+          qrCodeBase64: null,
+          qrCodeUrl: 'https://via.placeholder.com/300x300.png?text=Configure+Credenciais',
+          transactionId: 'MOCK-' + Date.now(),
+          status: 'pending',
+          expirationDate: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          amount: parseFloat(amount),
+          isMock: true,
+          error: 'Credenciais não configuradas'
+        };
+      }
+
+      // Tentar chamada direta à API (pode dar CORS, mas vamos tentar)
+      try {
+        const response = await fetch(`${MERCADO_PAGO_CONFIG.API_URL}/payments`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${MERCADO_PAGO_CONFIG.ACCESS_TOKEN}`,
+            'X-Idempotency-Key': `${Date.now()}-${Math.random()}`
+          },
+          body: JSON.stringify({
+            transaction_amount: parseFloat(amount),
+            description: description,
+            payment_method_id: 'pix',
+            payer: {
+              email: customerEmail,
+              first_name: 'Cliente',
+              last_name: 'VitorTable'
+            },
+            notification_url: MERCADO_PAGO_CONFIG.PAYMENT_CONFIG.notification_url,
+            metadata: {
+              app: 'VitorTable MT',
+              version: '1.0.0',
+              environment: 'development'
+            }
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Erro Mercado Pago:', errorData);
+          throw new Error(errorData.message || 'Erro ao gerar QR Code PIX');
+        }
+
+        const data = await response.json();
+        console.log('✅ PIX real gerado no desenvolvimento!', data.id);
+        
+        return {
+          qrCode: data.point_of_interaction?.transaction_data?.qr_code,
+          qrCodeBase64: data.point_of_interaction?.transaction_data?.qr_code_base64,
+          qrCodeUrl: data.point_of_interaction?.transaction_data?.ticket_url,
+          transactionId: data.id,
+          status: data.status,
+          expirationDate: data.date_of_expiration,
+          amount: data.transaction_amount,
+          isMock: false
+        };
+      } catch (corsError) {
+        console.warn('⚠️ CORS bloqueou chamada direta. Use um proxy ou extensão CORS.');
+        console.log('💡 Sugestão: Instale extensão "CORS Unblock" no navegador para desenvolvimento');
+        throw corsError;
+      }
     } else {
       // Produção: usar serverless function
       const apiUrl = window.location.origin + '/api/generate-pix';
