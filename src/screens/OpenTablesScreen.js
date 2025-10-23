@@ -86,7 +86,7 @@ export default function OpenTablesScreen({ onNavigate, screenParams }) {
         <Text style={styles.tempo}>{item.chegada}</Text>
       </View>
       <Text style={styles.cliente}>{item.cliente}</Text>
-      <Text style={styles.info}>{item.email}</Text>
+      <Text style={styles.emailText}>{item.email}</Text>
       <Text style={styles.info}>{item.telefone}</Text>
       <Text style={styles.info}>CPF: {item.cpf}</Text>
       <Text style={styles.info}>{item.pessoas} pessoa(s)</Text>
@@ -177,7 +177,7 @@ export default function OpenTablesScreen({ onNavigate, screenParams }) {
                   <View style={styles.modalSection}>
                     <Text style={styles.modalSectionTitle}>Cliente</Text>
                     <Text style={styles.modalText}>{selectedTable.cliente}</Text>
-                    <Text style={styles.modalText}>{selectedTable.email}</Text>
+                    <Text style={styles.modalEmailText}>{selectedTable.email}</Text>
                     <Text style={styles.modalText}>{selectedTable.telefone}</Text>
                     <Text style={styles.modalText}>CPF: {selectedTable.cpf}</Text>
                     <Text style={styles.modalText}>{selectedTable.pessoas} pessoa(s)</Text>
@@ -185,9 +185,9 @@ export default function OpenTablesScreen({ onNavigate, screenParams }) {
 
                   <View style={styles.modalSection}>
                     <Text style={styles.modalSectionTitle}>Horários</Text>
-                    <Text style={styles.modalText}>Chegada: {selectedTable.chegada}</Text>
+                    <Text style={styles.modalTimeText}>Chegada: {selectedTable.chegada}</Text>
                     <Text style={styles.modalText}>Status: {selectedTable.status === 'fechada' ? 'Fechada' : 'Aberta'}</Text>
-                    {selectedTable.saida && <Text style={styles.modalText}>Saída: {selectedTable.saida}</Text>}
+                    {selectedTable.saida && <Text style={styles.modalTimeText}>Saída: {selectedTable.saida}</Text>}
                   </View>
 
                   <View style={styles.modalSection}>
@@ -345,15 +345,21 @@ const styles = StyleSheet.create({
     color: '#DC2626'
   },
   tempo: {
-    fontSize: 12,
-    color: colors.muted,
-    fontWeight: '500'
+    fontSize: 13,
+    color: colors.time,
+    fontWeight: '700'
   },
   cliente: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 4
+  },
+  emailText: {
+    fontSize: 12,
+    color: colors.email,
+    marginBottom: 2,
+    fontWeight: '500'
   },
   info: {
     fontSize: 11,
@@ -474,6 +480,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
     marginBottom: 4
+  },
+  modalEmailText: {
+    fontSize: 13,
+    color: colors.email,
+    marginBottom: 4,
+    fontWeight: '600'
+  },
+  modalTimeText: {
+    fontSize: 13,
+    color: colors.time,
+    marginBottom: 4,
+    fontWeight: '600'
   },
   modalTotalRow: {
     flexDirection: 'row',

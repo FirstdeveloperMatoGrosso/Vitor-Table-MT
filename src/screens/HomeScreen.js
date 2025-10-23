@@ -1143,7 +1143,7 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   modalField: {
-    gap: 4
+    gap: 6
   },
   modalLabel: {
     fontSize: 12,
@@ -1153,11 +1153,12 @@ const styles = StyleSheet.create({
   modalInput: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 13,
-    color: colors.text
+    color: colors.text,
+    backgroundColor: '#FFFFFF'
   },
   modalError: {
     fontSize: 12,
@@ -1215,13 +1216,13 @@ const styles = StyleSheet.create({
     width: width > 600 ? 500 : '90%'
   },
   reserveContent: {
-    gap: 8,
-    paddingVertical: 8
+    gap: 12,
+    paddingVertical: 12
   },
   availableTablesSection: {
-    marginTop: 8,
-    gap: 6,
-    maxHeight: 120,
+    marginTop: 12,
+    gap: 8,
+    maxHeight: 140,
     overflow: 'hidden'
   },
   availableTitle: {
@@ -1230,9 +1231,9 @@ const styles = StyleSheet.create({
     color: colors.text
   },
   availableTableItem: {
-    backgroundColor: colors.background,
-    borderRadius: 6,
-    padding: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
     borderWidth: 1,
     borderColor: colors.border
   },
