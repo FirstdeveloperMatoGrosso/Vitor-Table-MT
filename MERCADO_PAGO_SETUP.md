@@ -9,13 +9,13 @@
 ### 1. Access Token
 1. Acesse: https://www.mercadopago.com.br/developers/panel
 2. Clique em "Credenciais"
-3. Copie o "Access Token" (começa com "APP_")
+3. Copie o "Access Token" (começa com "APP_USR-")
 
-### 2. User ID
+### 2. User ID (Opcional)
 1. No mesmo painel, você encontrará seu "User ID"
 2. Copie este valor
 
-### 3. Chave PIX
+### 3. Chave PIX (Opcional)
 1. Acesse: https://www.mercadopago.com.br/settings/account/pix
 2. Clique em "Adicionar chave PIX"
 3. Selecione "Chave aleatória" ou use CPF/CNPJ
@@ -23,24 +23,34 @@
 
 ## 🔧 Configurar no Projeto
 
-### 1. Abra o arquivo de configuração
-```
-src/config/mercadopago.js
+### Opção 1: Variáveis de Ambiente (Recomendado)
+
+#### Desenvolvimento Local
+1. Copie o arquivo `.env.example` para `.env.local`:
+```bash
+cp .env.example .env.local
 ```
 
-### 2. Substitua as credenciais
-```javascript
-export const MERCADO_PAGO_CONFIG = {
-  ACCESS_TOKEN: 'APP_xxxxxxxxxxxxxxxxxxxx', // Seu Access Token
-  USER_ID: '123456789',                      // Seu User ID
-  PIX_KEY: 'xxx@xxx.com.br',                 // Sua chave PIX
-  API_URL: 'https://api.mercadopago.com/v1',
-  PAYMENT_CONFIG: {
-    description: 'Compra de Saldo - VitorTable MT',
-    notification_url: 'https://seu-dominio.com/webhook/mercadopago'
-  }
-};
+2. Edite `.env.local` e adicione suas credenciais:
+```env
+REACT_APP_MERCADO_PAGO_ACCESS_TOKEN=APP_USR-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+REACT_APP_MERCADO_PAGO_USER_ID=123456789
+REACT_APP_MERCADO_PAGO_PIX_KEY=seu-email@exemplo.com
 ```
+
+#### Produção (Vercel)
+1. Acesse: https://vercel.com/dashboard
+2. Selecione seu projeto
+3. Vá em **Settings** > **Environment Variables**
+4. Adicione as variáveis:
+   - `REACT_APP_MERCADO_PAGO_ACCESS_TOKEN`
+   - `REACT_APP_MERCADO_PAGO_USER_ID`
+   - `REACT_APP_MERCADO_PAGO_PIX_KEY`
+5. Clique em "Save"
+6. Faça um novo deploy
+
+### Opção 2: Hardcode (Não Recomendado)
+Edite `src/config/mercadopago.js` diretamente (não seguro)
 
 ## 🧪 Testar Integração
 
