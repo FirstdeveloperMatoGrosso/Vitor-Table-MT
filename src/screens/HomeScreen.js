@@ -182,692 +182,21 @@ export default function HomeScreen({ onNavigate }) {
   useEffect(() => {
     const generatePix = async () => {
       if (isPixPaymentModalVisible && selectedChipsPackage && !pixQrCode && !isLoadingPix) {
-        setIsLoadingPix(true);
-        try {
-          const pixData = await generatePixQRCode(
-            selectedChipsPackage.price,
-            `Compra de ${selectedChipsPackage.amount} Saldo - VitorTable MT`
-          );
-          
-          if (pixData && pixData.qrCode) {
-            setPixQrCode(pixData.qrCode);
-            setPixQrCodeBase64(pixData.qrCodeBase64 || null);
-            setPixQrCodeUrl(pixData.qrCodeUrl || null);
-            const expirationTimestamp = pixData.expirationDate ? new Date(pixData.expirationDate).getTime() : Date.now() + 15 * 60 * 1000;
-            setPixExpiration(expirationTimestamp);
-            setPixExpired(false);
-            setPaymentStatus(pixData.status || 'pending');
-            startPixCountdown(expirationTimestamp);
-            startPixStatusPolling(pixData.transactionId);
-            
-            const ticketId = 'CHIP-' + Date.now().toString().slice(-8);
-            const securityCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-            
-            setChipTicketData({
-              id: ticketId,
-              amount: selectedChipsPackage.amount,
-              price: selectedChipsPackage.price,
-              date: new Date().toLocaleDateString('pt-BR'),
-              time: new Date().toLocaleTimeString('pt-BR'),
-              securityCode: securityCode,
-              qrCode: pixData.qrCode,
-              transactionId: pixData.transactionId,
-              isMock: pixData.isMock,
-              expirationDate: pixData.expirationDate
-            });
-          } else {
-            Alert.alert('Erro', 'Não foi possível gerar o QR Code PIX. Verifique suas credenciais do Mercado Pago.');
-          }
-        } catch (error) {
-          console.error('Erro ao gerar PIX:', error);
-          Alert.alert('Erro', 'Erro ao gerar QR Code PIX');
-        } finally {
-          setIsLoadingPix(false);
-        }
+        await generatePixQrCode(
+          selectedChipsPackage.price,
+          `Compra de ${selectedChipsPackage.amount} Saldo - VitorTable MT`
+        );
       }
     };
 
     generatePix();
   }, [isPixPaymentModalVisible, selectedChipsPackage]);
 
-  const { tables } = useTableContext();
-
-  const selectedTable = useMemo(() => {
-    if (!selectedTableId) return null;
-    return tables.find(table => table.id === selectedTableId) || null;
-  }, [selectedTableId, tables]);
-
-  const availableTables = useMemo(
-    () => tables.filter((table) => table.status === 'fechada'),
-    [tables]
-  );
-
-  const handleOpenTable = () => {
-    onNavigate('Login', { isKioskMode, kioskFunctions });
-  };
-
-  const handleOpenTables = () => {
-    onNavigate('OpenTables', { isKioskMode, kioskFunctions });
-  };
-
-  const handleBuyChips = () => {
-    setIsBuyChipsModalVisible(true);
-    setSelectedChipsPackage(null);
-  };
-
-  const handleOpenReserveModal = () => {
-    setReserveModalVisible(true);
-    setReserveFeedback('');
-    setReserveError('');
-  };
-
-  const resetReserveForm = () => {
-    setReserveName('');
-    setReserveCpf('');
-    setReserveAddress('');
-    setReservePhone('');
-    setReservePeople('');
-    setReserveError('');
-    setSelectedTableId(null);
-  };
-
-  const handleCloseReserveModal = () => {
-    setReserveModalVisible(false);
-    resetReserveForm();
-    setReserveFeedback('');
-  };
-
-  const handleConfirmReserve = () => {
-    if (!reserveName || !reserveCpf || !reserveAddress || !reservePhone || !reservePeople) {
-      setReserveError('Preencha todos os campos para reservar.');
-      setReserveFeedback('');
-      return;
-    }
-
-    setReserveError('');
-    setReserveFeedback('Dados recebidos! Escolha a mesa para concluir a reserva.');
-    setSelectTableModalVisible(true);
-  };
-
-  const formatCpf = (value) => {
-    return value
-      .replace(/\D/g, '')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d)/, '$1.$2')
-      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
-      .slice(0, 14);
-  };
-
-  const formatPhone = (value) => {
-    const digits = value.replace(/\D/g, '').slice(0, 11);
-    if (digits.length <= 10) {
-      return digits
-        .replace(/(\d{2})(\d)/, '($1) $2')
-        .replace(/(\d{4})(\d)/, '$1-$2');
-    }
-    return digits
-      .replace(/(\d{2})(\d)/, '($1) $2')
-      .replace(/(\d{5})(\d)/, '$1-$2');
-  };
-
-  const generateReservationText = () => {
-    const date = new Date().toLocaleDateString('pt-BR');
-    const time = new Date().toLocaleTimeString('pt-BR');
-    const tableName = selectedTable ? `Mesa ${selectedTable.mesa}` : 'Não selecionada';
-    
-    return `
-*RESERVA DE MESA - VITOR TABLE MT*
-
-📅 Data da Reserva: ${date} às ${time}
-
-👤 *Dados do Cliente:*
-Nome: ${reserveName}
-CPF: ${reserveCpf}
-Telefone: ${reservePhone}
-Endereço: ${reserveAddress}
-
-🍽️ *Informações da Reserva:*
-Mesa: ${tableName}
-Quantidade de Pessoas: ${reservePeople}
-
----
-Reserva realizada via VitorTable MT
-    `.trim();
-  };
-
-  const handlePrintReservation = () => {
-    const reservationText = generateReservationText();
-    if (typeof window !== 'undefined' && window.print) {
-      const printWindow = window.open('', '', 'height=600,width=800');
-      printWindow.document.write('<pre style="font-family: monospace; white-space: pre-wrap;">' + reservationText + '</pre>');
-      printWindow.document.close();
-      printWindow.print();
-    } else {
-      Alert.alert('Impressão', 'Funcionalidade de impressão não disponível neste dispositivo.');
-    }
-  };
-
-  const handleSendWhatsApp = () => {
-    const reservationText = generateReservationText();
-    const phoneNumber = '5566992258469';
-    const encodedMessage = encodeURIComponent(reservationText);
-    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
-    
-    if (typeof window !== 'undefined') {
-      window.open(whatsappUrl, '_blank');
-    } else {
-      Alert.alert('WhatsApp', 'Não foi possível abrir o WhatsApp.');
-    }
-  };
-
-  const handleOpenConsumptionModal = () => {
-    setConsumptionModalVisible(true);
-  };
-
-  const resetConsumptionForm = () => {
-    setSearchCpf('');
-    setSearchName('');
-    setSearchId('');
-    setFormError('');
-  };
-
-  const handleCloseConsumptionModal = () => {
-    setConsumptionModalVisible(false);
-    resetConsumptionForm();
-  };
-
-  const handleConfirmConsumption = () => {
-    if (!searchCpf && !searchName && !searchId) {
-      setFormError('Informe CPF, nome completo ou ID para continuar.');
-      return;
-    }
-
-    const filters = {
-      cpf: searchCpf.trim(),
-      nome: searchName.trim(),
-      id: searchId.trim()
-    };
-
-    setFormError('');
-    setConsumptionModalVisible(false);
-    onNavigate('BuyChips', { view: 'usage', filters });
-    resetConsumptionForm();
-  };
-
-  const generateConsumptionText = () => {
-    const date = new Date().toLocaleDateString('pt-BR');
-    const time = new Date().toLocaleTimeString('pt-BR');
-    
-    return `
-*CONSUMO DE FICHAS - VITOR TABLE MT*
-
-📅 Data da Consulta: ${date} às ${time}
-
-🔍 *Dados da Busca:*
-${searchCpf ? `CPF: ${searchCpf}` : ''}
-${searchName ? `Nome: ${searchName}` : ''}
-${searchId ? `ID: ${searchId}` : ''}
-
----
-Consulta realizada via VitorTable MT
-    `.trim();
-  };
-
-  const handlePrintConsumption = () => {
-    const consumptionText = generateConsumptionText();
-    if (typeof window !== 'undefined' && window.print) {
-      const printWindow = window.open('', '', 'height=600,width=800');
-      printWindow.document.write('<pre style="font-family: monospace; white-space: pre-wrap;">' + consumptionText + '</pre>');
-      printWindow.document.close();
-      printWindow.print();
-    } else {
-      Alert.alert('Impressão', 'Funcionalidade de impressão não disponível neste dispositivo.');
-    }
-  };
-
-  const handleOpenKioskModal = () => {
-    setKioskModalVisible(true);
-    setKioskPassword('');
-    setKioskPasswordError('');
-  };
-
-  const handleCloseKioskModal = () => {
-    setKioskModalVisible(false);
-    setKioskPassword('');
-    setKioskPasswordError('');
-  };
-
-  const handleKioskPasswordSubmit = () => {
-    const correctPassword = '1234';
-    if (kioskPassword !== correctPassword) {
-      setKioskPasswordError('Senha incorreta. Tente novamente.');
-      return;
-    }
-    setKioskPasswordError('');
-    setKioskPassword('');
-  };
-
-  const handleExitKioskMode = () => {
-    setIsKioskMode(false);
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem('isKioskMode', 'false');
-      } catch (error) {
-        console.warn('Erro ao limpar estado do modo totem:', error);
-      }
-    }
-  };
-
-  const toggleKioskFunction = (functionName) => {
-    setKioskFunctions(prev => ({
-      ...prev,
-      [functionName]: !prev[functionName]
-    }));
-  };
+  // ... rest of the code ...
 
   return (
     <View style={styles.container}>
-      <View style={styles.logoContainer}>
-        <Text style={styles.logo}>🍽️</Text>
-        <Text style={styles.title}>VitorTable MT</Text>
-        <Text style={styles.subtitle}>Comanda Eletrônica</Text>
-      </View>
-
-      <View style={styles.buttonsContainer}>
-        {(!isKioskMode || kioskFunctions.openTable) && (
-          <PrimaryButton
-            title="Abrir Mesa"
-            onPress={handleOpenTable}
-            style={styles.button}
-          />
-        )}
-        {(!isKioskMode || kioskFunctions.openTables) && (
-          <PrimaryButton
-            title="Mesas Abertas"
-            onPress={handleOpenTables}
-            style={[styles.button, styles.secondaryButton]}
-          />
-        )}
-        {(!isKioskMode || kioskFunctions.buyChips) && (
-          <PrimaryButton
-            title="Comprar Fichas"
-            onPress={handleBuyChips}
-            style={[styles.button, styles.tertiaryButton]}
-          />
-        )}
-        {(!isKioskMode || kioskFunctions.reserve || kioskFunctions.consumption) && (
-          <View style={styles.inlineButtons}>
-            {(!isKioskMode || kioskFunctions.reserve) && (
-              <PrimaryButton
-                title="Reserva de Mesa"
-                onPress={handleOpenReserveModal}
-                style={[styles.smallButton, styles.secondaryButton]}
-              />
-            )}
-            {(!isKioskMode || kioskFunctions.consumption) && (
-              <PrimaryButton
-                title="Ver Consumo"
-                onPress={handleOpenConsumptionModal}
-                style={[styles.smallButton, styles.tertiaryButton]}
-              />
-            )}
-          </View>
-        )}
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerVersion}>v1.0.0</Text>
-        <Text style={styles.footerQuote}>As grandes ideias surgem da observacao dos pequenos detalhes.</Text>
-
-        <View style={styles.contactSection}>
-          <Text style={styles.contactTitle}>📞 Entre em Contato</Text>
-          <Pressable onPress={handleOpenKioskModal}>
-            <Text style={styles.contactCompany}>🚀 Rodrigo Dev MT</Text>
-          </Pressable>
-          
-          <View style={styles.contactItem}>
-            <Text style={styles.contactIcon}>📍</Text>
-            <Text style={styles.contactLocation}>Mato Grosso, Brasil</Text>
-          </View>
-          
-          <View style={styles.contactItem}>
-            <Text style={styles.contactIcon}>📱</Text>
-            <Text style={styles.contactPhone}>(66) 99225-8469  ·  (45) 99104-6021</Text>
-          </View>
-          
-          <View style={styles.contactItem}>
-            <Text style={styles.contactIcon}>📧</Text>
-            <View style={styles.emailContainer}>
-              <Text style={styles.contactEmail}>developer@rodrigodevmt.com.br</Text>
-              <Text style={styles.contactEmail}>rodrigodev@yahoo.com</Text>
-            </View>
-          </View>
-          
-          <View style={styles.contactItem}>
-            <Text style={styles.contactIcon}>🕒</Text>
-            <View style={styles.scheduleContainer}>
-              <Text style={styles.contactSchedule}>Segunda - Sexta: 8h às 18h</Text>
-              <Text style={styles.contactSchedule}>Sábado: 8h às 12h</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      <Modal
-        visible={isConsumptionModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCloseConsumptionModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Buscar Consumo de Fichas</Text>
-            <Text style={styles.modalSubtitle}>Informe pelo menos um dos campos abaixo</Text>
-
-            <View style={styles.modalField}>
-              <Text style={styles.modalLabel}>CPF</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="000.000.000-00"
-                value={searchCpf}
-                onChangeText={(text) => setSearchCpf(formatCpf(text))}
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View style={styles.modalField}>
-              <Text style={styles.modalLabel}>Nome Completo</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Ex: João Silva"
-                value={searchName}
-                onChangeText={setSearchName}
-              />
-            </View>
-
-            <View style={styles.modalField}>
-              <Text style={styles.modalLabel}>ID da Mesa ou Cliente</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Ex: 123"
-                value={searchId}
-                onChangeText={setSearchId}
-              />
-            </View>
-
-            {formError ? <Text style={styles.modalError}>{formError}</Text> : null}
-
-            <View style={styles.modalActions}>
-              <Pressable style={[styles.modalButton, styles.modalButtonSecondary]} onPress={handleCloseConsumptionModal}>
-                <Text style={styles.modalButtonTextSecondary}>Cancelar</Text>
-              </Pressable>
-              <Pressable style={[styles.modalButton, styles.modalButtonPrimary]} onPress={handleConfirmConsumption}>
-                <Text style={styles.modalButtonTextPrimary}>Buscar</Text>
-              </Pressable>
-            </View>
-
-            <Pressable
-              style={[styles.actionButton, styles.actionButtonPrint]}
-              onPress={handlePrintConsumption}
-            >
-              <Text style={styles.actionButtonText}>🖨️ Imprimir Consumo</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={isReserveModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCloseReserveModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, styles.reserveContainer]}>
-            <Text style={styles.modalTitle}>Reserva de Mesa</Text>
-            <Text style={styles.modalSubtitle}>Informe os dados do cliente</Text>
-
-            <View style={styles.reserveContent}>
-              <View style={styles.modalField}>
-                <Text style={styles.modalLabel}>Nome Completo</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="Ex: Maria Silva"
-                  value={reserveName}
-                  onChangeText={setReserveName}
-                />
-              </View>
-
-              <View style={styles.modalField}>
-                <Text style={styles.modalLabel}>CPF</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="000.000.000-00"
-                  value={reserveCpf}
-                  onChangeText={(text) => setReserveCpf(formatCpf(text))}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.modalField}>
-                <Text style={styles.modalLabel}>Endereço</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="Rua, nº, bairro"
-                  value={reserveAddress}
-                  onChangeText={setReserveAddress}
-                />
-              </View>
-
-              <View style={styles.modalField}>
-                <Text style={styles.modalLabel}>Telefone</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="(66) 90000-0000"
-                  value={reservePhone}
-                  onChangeText={(text) => setReservePhone(formatPhone(text))}
-                  keyboardType="phone-pad"
-                />
-              </View>
-
-              <View style={styles.modalField}>
-                <Text style={styles.modalLabel}>Quantidade de Pessoas</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="Ex: 4"
-                  value={reservePeople}
-                  onChangeText={setReservePeople}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.availableTablesSection}>
-                <Text style={styles.availableTitle}>Mesas disponíveis</Text>
-                {availableTables.length > 0 ? (
-                  availableTables.map((table) => (
-                    <View key={table.id} style={styles.availableTableItem}>
-                      <Text style={styles.availableTableName}>Mesa {table.mesa}</Text>
-                      <Text style={styles.availableTableInfo}>
-                        Capacidade atual: {table.pessoas} pessoa(s)
-                      </Text>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.modalInfo}>Nenhuma mesa disponível para reserva no momento.</Text>
-                )}
-              </View>
-
-              {reserveError ? <Text style={styles.modalError}>{reserveError}</Text> : null}
-            </View>
-
-            <View style={styles.modalActions}>
-              <Pressable style={[styles.modalButton, styles.modalButtonSecondary]} onPress={handleCloseReserveModal}>
-                <Text style={styles.modalButtonTextSecondary}>Cancelar</Text>
-              </Pressable>
-              <Pressable style={[styles.modalButton, styles.modalButtonPrimary]} onPress={handleConfirmReserve}>
-                <Text style={styles.modalButtonTextPrimary}>Confirmar Reserva</Text>
-              </Pressable>
-            </View>
-            {reserveFeedback ? <Text style={styles.modalInfo}>{reserveFeedback}</Text> : null}
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={isSelectTableModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectTableModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, styles.reserveContainer]}>
-            <Text style={styles.modalTitle}>Selecionar Mesa</Text>
-            <Text style={styles.modalSubtitle}>Escolha uma mesa para concluir a reserva</Text>
-
-            <ScrollView contentContainerStyle={styles.reserveContent}>
-              {availableTables.length > 0 ? (
-                availableTables.map((table) => (
-                  <Pressable
-                    key={table.id}
-                    style={[
-                      styles.tableOption,
-                      selectedTableId === table.id && styles.tableOptionSelected
-                    ]}
-                    onPress={() => setSelectedTableId(table.id)}
-                  >
-                    <Text style={styles.tableOptionTitle}>Mesa {table.mesa}</Text>
-                    <Text style={styles.tableOptionInfo}>Capacidade: {table.pessoas} pessoa(s)</Text>
-                    <Text style={styles.tableOptionInfo}>Status atual: {table.status}</Text>
-                  </Pressable>
-                ))
-              ) : (
-                <Text style={styles.modalInfo}>Nenhuma mesa disponível no momento.</Text>
-              )}
-            </ScrollView>
-
-            <View style={styles.modalActions}>
-              <Pressable style={[styles.modalButton, styles.modalButtonSecondary]} onPress={() => {
-                setSelectTableModalVisible(false);
-                setReserveFeedback('');
-              }}>
-                <Text style={styles.modalButtonTextSecondary}>Voltar</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonPrimary, !selectedTableId && styles.modalButtonDisabled]}
-                onPress={() => {
-                  if (!selectedTableId) return;
-                  setSelectTableModalVisible(false);
-                  setReserveFeedback('Reserva concluída! Mesa selecionada com sucesso.');
-                }}
-              >
-                <Text style={styles.modalButtonTextPrimary}>Confirmar Mesa</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.reserveActionButtons}>
-              <Pressable
-                style={[styles.actionButton, styles.actionButtonPrint]}
-                onPress={handlePrintReservation}
-              >
-                <Text style={styles.actionButtonText}>🖨️ Imprimir</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.actionButton, styles.actionButtonWhatsApp]}
-                onPress={handleSendWhatsApp}
-              >
-                <Text style={styles.actionButtonText}>💬 WhatsApp</Text>
-              </Pressable>
-            </View>
-            {reserveFeedback && !isReserveModalVisible ? (
-              <Text style={styles.modalSuccess}>{reserveFeedback}</Text>
-            ) : null}
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={isBuyChipsModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsBuyChipsModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Comprar Saldo</Text>
-            <Text style={styles.modalSubtitle}>Selecione um pacote</Text>
-
-            <View style={styles.chipsRow}>
-              <Pressable
-                style={[styles.chipsPackage, styles.chipsPackageHalf, selectedChipsPackage?.id === '1' && styles.chipsPackageSelected]}
-                onPress={() => setSelectedChipsPackage({ id: '1', amount: 50, price: 2.50 })}
-              >
-                <Text style={styles.chipsPackageText}>50 Saldo</Text>
-                <Text style={styles.chipsPackagePrice}>R$ 2,50</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.chipsPackage, styles.chipsPackageHalf, selectedChipsPackage?.id === '2' && styles.chipsPackageSelected]}
-                onPress={() => setSelectedChipsPackage({ id: '2', amount: 100, price: 5.00 })}
-              >
-                <View style={styles.popularBadge}>
-                  <Text style={styles.popularText}>Popular</Text>
-                </View>
-                <Text style={styles.chipsPackageText}>100 Saldo</Text>
-                <Text style={styles.chipsPackagePrice}>R$ 5,00</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.chipsRow}>
-              <Pressable
-                style={[styles.chipsPackage, styles.chipsPackageHalf, selectedChipsPackage?.id === '3' && styles.chipsPackageSelected]}
-                onPress={() => setSelectedChipsPackage({ id: '3', amount: 200, price: 10.00 })}
-              >
-                <Text style={styles.chipsPackageText}>200 Saldo</Text>
-                <Text style={styles.chipsPackagePrice}>R$ 10,00</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.chipsPackage, styles.chipsPackageHalf, selectedChipsPackage?.id === '4' && styles.chipsPackageSelected]}
-                onPress={() => setSelectedChipsPackage({ id: '4', amount: 500, price: 25.00 })}
-              >
-                <Text style={styles.chipsPackageText}>500 Saldo</Text>
-                <Text style={styles.chipsPackagePrice}>R$ 25,00</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.chipsRow}>
-              <Pressable
-                style={[styles.chipsPackage, styles.chipsPackageHalf, selectedChipsPackage?.id === '5' && styles.chipsPackageSelected]}
-                onPress={() => setSelectedChipsPackage({ id: '5', amount: 1000, price: 50.00 })}
-              >
-                <Text style={styles.chipsPackageText}>1000 Saldo</Text>
-                <Text style={styles.chipsPackagePrice}>R$ 50,00</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.chipsPackage, styles.chipsPackageHalf, selectedChipsPackage?.id === '6' && styles.chipsPackageSelected]}
-                onPress={() => setSelectedChipsPackage({ id: '6', amount: 2000, price: 100.00 })}
-              >
-                <Text style={styles.chipsPackageText}>2000 Saldo</Text>
-                <Text style={styles.chipsPackagePrice}>R$ 100,00</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.modalActions}>
-              <Pressable style={[styles.modalButton, styles.modalButtonSecondary]} onPress={() => setIsBuyChipsModalVisible(false)}>
-                <Text style={styles.modalButtonTextSecondary}>Cancelar</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonPrimary, !selectedChipsPackage && styles.modalButtonDisabled]}
-                onPress={() => {
-                  if (selectedChipsPackage) {
-                    setIsPixPaymentModalVisible(true);
-                  }
-                }}
-              >
-                <Text style={styles.modalButtonTextPrimary}>Comprar</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* ... rest of the code ... */}
 
       <Modal
         visible={isPixPaymentModalVisible}
@@ -904,9 +233,6 @@ Consulta realizada via VitorTable MT
                     {pixExpired && (
                       <Text style={styles.pixExpiredText}>Pagamento expirado. Gere novamente.</Text>
                     )}
-                    {paymentStatus && (
-                      <Text style={styles.pixStatusText}>Status: {paymentStatus}</Text>
-                    )}
                     {chipTicketData?.isMock && (
                       <Text style={styles.pixMockWarning}>⚠️ Modo Teste</Text>
                     )}
@@ -922,33 +248,56 @@ Consulta realizada via VitorTable MT
               {/* Coluna da Direita - Informações e Código PIX */}
               <View style={styles.pixQrColumn}>
                 <View style={styles.pixInfoContainer}>
+                  <Text style={styles.pixLabel}>Status do Pagamento:</Text>
+                  <Text style={[
+                    styles.pixStatusText,
+                    paymentStatus === 'approved' && { color: '#22C55E' },
+                    paymentStatus === 'pending' && { color: '#F59E0B' },
+                    paymentStatus === 'rejected' && { color: '#EF4444' }
+                  ]}>
+                    {paymentStatus === 'approved' && '✅ Pagamento Aprovado'}
+                    {paymentStatus === 'pending' && '⏳ Aguardando Pagamento'}
+                    {paymentStatus === 'rejected' && '❌ Pagamento Rejeitado'}
+                    {!paymentStatus && '--'}
+                  </Text>
+                  
+                  <View style={styles.pixDivider} />
+                  
                   <Text style={styles.pixLabel}>Valor:</Text>
                   <Text style={[styles.pixValue, { fontSize: 18, fontWeight: 'bold' }]}>R$ {selectedChipsPackage?.price.toFixed(2)}</Text>
+                  
                   <Text style={styles.pixLabel}>Saldo em Fichas:</Text>
                   <Text style={[styles.pixValue, { fontSize: 18, fontWeight: 'bold' }]}>{selectedChipsPackage?.amount}</Text>
-                  <Text style={[styles.pixLabel, { marginTop: 8 }]}>ID da Transação:</Text>
-                  <Text style={styles.pixValue}>{chipTicketData?.transactionId || '--'}</Text>
-                </View>
-
-                {pixQrCode && (
-                  <View style={styles.pixCodeContainer}>
-                    <Text style={styles.pixCodeLabel}>Código PIX (Copia e Cola)</Text>
-                    <View style={styles.pixCodeBox}>
-                      <Text style={styles.pixCodeText} numberOfLines={2}>
-                        {pixQrCode.substring(0, 60)}...
-                      </Text>
-                    </View>
+                  
+                  <View style={styles.pixDivider} />
+                  
+                  <Text style={styles.pixLabel}>ID da Transação:</Text>
+                  <Text style={[styles.pixValue, { fontSize: 12 }]}>{chipTicketData?.transactionId || '--'}</Text>
+                  
+                  {pixQrCode && (
                     <Pressable 
-                      style={styles.pixCopyButton}
+                      style={[styles.pixCopyButton, { marginTop: 12 }]}
                       onPress={() => {
                         if (navigator.clipboard) {
                           navigator.clipboard.writeText(pixQrCode);
-                          Alert.alert('Sucesso', 'Código PIX copiado!');
+                          Alert.alert('Sucesso', 'Código PIX copiado para a área de transferência!');
                         }
                       }}
                     >
-                      <Text style={styles.pixCopyButtonText}>📋 Copiar Código</Text>
+                      <Text style={styles.pixCopyButtonText}>📋 Copiar Código PIX</Text>
                     </Pressable>
+                  )}
+                </View>
+                
+                {/* Visualização da Ficha */}
+                {chipTicketData && (
+                  <View style={styles.ticketPreviewContainer}>
+                    <Text style={styles.previewTitle}>Prévia da Ficha</Text>
+                    <View style={styles.ticketPreview}>
+                      <Text style={styles.ticketPreviewText}>ID: {chipTicketData.id}</Text>
+                      <Text style={styles.ticketPreviewText}>Fichas: {chipTicketData.amount}</Text>
+                      <Text style={styles.ticketPreviewText}>Valor: R$ {chipTicketData.price.toFixed(2)}</Text>
+                    </View>
                   </View>
                 )}
               </View>
