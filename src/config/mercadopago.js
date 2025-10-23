@@ -23,46 +23,67 @@ export const MERCADO_PAGO_CONFIG = {
 };
 
 // Função para gerar QR Code PIX via Mercado Pago
-// Usa Vercel Serverless Function para evitar CORS
 export const generatePixQRCode = async (amount, description, customerEmail = 'customer@vitortable.com') => {
   try {
-    // Usar serverless function (evita CORS)
-    const apiUrl = window.location.origin + '/api/generate-pix';
+    // Verificar se está em desenvolvimento local
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
+    if (isLocal) {
+      // Modo desenvolvimento: usar mock ou API direta (com CORS desabilitado)
+      console.warn('🔧 Modo desenvolvimento: Gerando PIX mock');
+      
+      // Simular delay de API
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      return {
+        qrCode: '00020126580014br.gov.bcb.pix0136' + Math.random().toString(36).substring(7),
+        qrCodeBase64: null,
+        qrCodeUrl: 'https://via.placeholder.com/300x300.png?text=QR+Code+PIX+Mock',
+        transactionId: 'DEV-' + Date.now(),
+        status: 'pending',
+        expirationDate: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
         amount: parseFloat(amount),
-        description: description,
-        customerEmail: customerEmail
-      })
-    });
+        isMock: true
+      };
+    } else {
+      // Produção: usar serverless function
+      const apiUrl = window.location.origin + '/api/generate-pix';
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          description: description,
+          customerEmail: customerEmail
+        })
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Erro ao gerar PIX:', errorData);
-      throw new Error(errorData.message || 'Erro ao gerar QR Code PIX');
-    }
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Erro ao gerar PIX:', errorData);
+        throw new Error(errorData.message || 'Erro ao gerar QR Code PIX');
+      }
 
-    const data = await response.json();
-    
-    if (!data.success) {
-      throw new Error('Falha ao gerar PIX');
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error('Falha ao gerar PIX');
+      }
+      
+      return {
+        qrCode: data.qrCode,
+        qrCodeBase64: data.qrCodeBase64,
+        qrCodeUrl: data.qrCodeUrl,
+        transactionId: data.transactionId,
+        status: data.status,
+        expirationDate: data.expirationDate,
+        amount: data.amount,
+        isMock: false
+      };
     }
-    
-    return {
-      qrCode: data.qrCode,
-      qrCodeBase64: data.qrCodeBase64,
-      qrCodeUrl: data.qrCodeUrl,
-      transactionId: data.transactionId,
-      status: data.status,
-      expirationDate: data.expirationDate,
-      amount: data.amount,
-      isMock: false
-    };
   } catch (error) {
     console.error('Erro ao gerar PIX:', error);
     return null;
@@ -72,6 +93,22 @@ export const generatePixQRCode = async (amount, description, customerEmail = 'cu
 // Função para verificar status do pagamento
 export const checkPaymentStatus = async (transactionId) => {
   try {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    if (isLocal) {
+      // Modo desenvolvimento: simular aprovação
+      console.warn('🔧 Modo desenvolvimento: Simulando status aprovado');
+      
+      if (transactionId.startsWith('DEV-')) {
+        return {
+          status: 'approved',
+          statusDetail: 'accredited',
+          amount: 50.00,
+          dateApproved: new Date().toISOString()
+        };
+      }
+    }
+    
     const apiUrl = window.location.origin + `/api/check-payment?transactionId=${transactionId}`;
     
     const response = await fetch(apiUrl, {
