@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions, Modal, TextInput, Pressable, ScrollView, Alert } from 'react-native';
 import PrimaryButton from '../components/PrimaryButton';
 import colors from '../theme/colors';
@@ -85,6 +85,50 @@ export default function HomeScreen({ onNavigate }) {
       }
     }
   }, []);
+
+  // Gerar PIX automaticamente quando o modal abrir
+  useEffect(() => {
+    const generatePix = async () => {
+      if (isPixPaymentModalVisible && selectedChipsPackage && !pixQrCode && !isLoadingPix) {
+        setIsLoadingPix(true);
+        try {
+          const pixData = await generatePixQRCode(
+            selectedChipsPackage.price,
+            `Compra de ${selectedChipsPackage.amount} Saldo - VitorTable MT`
+          );
+          
+          if (pixData && pixData.qrCode) {
+            setPixQrCode(pixData.qrCode);
+            
+            const ticketId = 'CHIP-' + Date.now().toString().slice(-8);
+            const securityCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            
+            setChipTicketData({
+              id: ticketId,
+              amount: selectedChipsPackage.amount,
+              price: selectedChipsPackage.price,
+              date: new Date().toLocaleDateString('pt-BR'),
+              time: new Date().toLocaleTimeString('pt-BR'),
+              securityCode: securityCode,
+              qrCode: pixData.qrCode,
+              transactionId: pixData.transactionId,
+              isMock: pixData.isMock
+            });
+          } else {
+            Alert.alert('Erro', 'Não foi possível gerar o QR Code PIX. Verifique suas credenciais do Mercado Pago.');
+          }
+        } catch (error) {
+          console.error('Erro ao gerar PIX:', error);
+          Alert.alert('Erro', 'Erro ao gerar QR Code PIX');
+        } finally {
+          setIsLoadingPix(false);
+        }
+      }
+    };
+
+    generatePix();
+  }, [isPixPaymentModalVisible, selectedChipsPackage]);
+
   const { tables } = useTableContext();
 
   const selectedTable = useMemo(() => {
@@ -718,19 +762,48 @@ Consulta realizada via VitorTable MT
             <View style={styles.pixQrContainer}>
               {isLoadingPix ? (
                 <View style={styles.pixQrBox}>
-                  <Text style={styles.pixQrText}>⏳ Gerando...</Text>
+                  <Text style={styles.pixQrIcon}>⏳</Text>
+                  <Text style={styles.pixQrText}>Gerando QR Code...</Text>
+                  <Text style={styles.pixQrSubtext}>Aguarde um momento</Text>
                 </View>
               ) : pixQrCode ? (
                 <View style={styles.pixQrBox}>
-                  <Text style={styles.pixQrText}>📱 PIX</Text>
-                  <Text style={styles.pixQrSubtext}>{pixQrCode.substring(0, 20)}...</Text>
+                  <Text style={styles.pixQrIcon}>✅</Text>
+                  <Text style={styles.pixQrText}>QR Code Gerado!</Text>
+                  <Text style={styles.pixQrSubtext}>Escaneie para pagar</Text>
+                  {chipTicketData?.isMock && (
+                    <Text style={styles.pixMockWarning}>⚠️ Modo Teste</Text>
+                  )}
                 </View>
               ) : (
                 <View style={styles.pixQrBox}>
-                  <Text style={styles.pixQrText}>📱 QR Code PIX</Text>
+                  <Text style={styles.pixQrIcon}>📱</Text>
+                  <Text style={styles.pixQrText}>Preparando...</Text>
                 </View>
               )}
             </View>
+
+            {pixQrCode && (
+              <View style={styles.pixCodeContainer}>
+                <Text style={styles.pixCodeLabel}>Código PIX (Copia e Cola)</Text>
+                <View style={styles.pixCodeBox}>
+                  <Text style={styles.pixCodeText} numberOfLines={2}>
+                    {pixQrCode.substring(0, 60)}...
+                  </Text>
+                </View>
+                <Pressable 
+                  style={styles.pixCopyButton}
+                  onPress={() => {
+                    if (navigator.clipboard) {
+                      navigator.clipboard.writeText(pixQrCode);
+                      Alert.alert('Sucesso', 'Código PIX copiado!');
+                    }
+                  }}
+                >
+                  <Text style={styles.pixCopyButtonText}>📋 Copiar Código</Text>
+                </Pressable>
+              </View>
+            )}
 
             <View style={styles.pixInfoContainer}>
               <Text style={styles.pixLabel}>Valor:</Text>
@@ -740,54 +813,29 @@ Consulta realizada via VitorTable MT
             </View>
 
             <View style={styles.modalActions}>
-              <Pressable style={[styles.modalButton, styles.modalButtonSecondary]} onPress={() => setIsPixPaymentModalVisible(false)}>
+              <Pressable 
+                style={[styles.modalButton, styles.modalButtonSecondary]} 
+                onPress={() => {
+                  setIsPixPaymentModalVisible(false);
+                  setPixQrCode(null);
+                }}
+              >
                 <Text style={styles.modalButtonTextSecondary}>Cancelar</Text>
               </Pressable>
               <Pressable
-                style={[styles.modalButton, styles.modalButtonPrimary, isLoadingPix && styles.modalButtonDisabled]}
-                onPress={async () => {
-                  setIsLoadingPix(true);
-                  try {
-                    const pixData = await generatePixQRCode(
-                      selectedChipsPackage.price,
-                      `Compra de ${selectedChipsPackage.amount} Saldo - VitorTable MT`
-                    );
-                    
-                    if (pixData && pixData.qrCode) {
-                      setPixQrCode(pixData.qrCode);
-                      
-                      const ticketId = 'CHIP-' + Date.now().toString().slice(-8);
-                      const securityCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-                      
-                      setChipTicketData({
-                        id: ticketId,
-                        amount: selectedChipsPackage.amount,
-                        price: selectedChipsPackage.price,
-                        date: new Date().toLocaleDateString('pt-BR'),
-                        time: new Date().toLocaleTimeString('pt-BR'),
-                        securityCode: securityCode,
-                        qrCode: pixData.qrCode,
-                        transactionId: pixData.transactionId
-                      });
-                      
-                      setTimeout(() => {
-                        setIsPixPaymentModalVisible(false);
-                        setIsBuyChipsModalVisible(false);
-                        setIsSuccessModalVisible(true);
-                        setIsLoadingPix(false);
-                      }, 2000);
-                    } else {
-                      Alert.alert('Erro', 'Não foi possível gerar o QR Code PIX. Verifique suas credenciais do Mercado Pago.');
-                      setIsLoadingPix(false);
-                    }
-                  } catch (error) {
-                    console.error('Erro ao gerar PIX:', error);
-                    Alert.alert('Erro', 'Erro ao gerar QR Code PIX');
-                    setIsLoadingPix(false);
+                style={[styles.modalButton, styles.modalButtonPrimary, (isLoadingPix || !pixQrCode) && styles.modalButtonDisabled]}
+                onPress={() => {
+                  if (pixQrCode && chipTicketData) {
+                    setIsPixPaymentModalVisible(false);
+                    setIsBuyChipsModalVisible(false);
+                    setIsSuccessModalVisible(true);
+                    setPixQrCode(null);
                   }
                 }}
               >
-                <Text style={styles.modalButtonTextPrimary}>{isLoadingPix ? 'Gerando...' : 'Gerar QR Code PIX'}</Text>
+                <Text style={styles.modalButtonTextPrimary}>
+                  {isLoadingPix ? 'Gerando...' : 'Confirmar Pagamento'}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -1479,15 +1527,57 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.border
   },
-  pixQrText: {
+  pixQrIcon: {
     fontSize: 48,
-    color: colors.muted
+    marginBottom: 8
+  },
+  pixQrText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text
   },
   pixQrSubtext: {
-    fontSize: 10,
+    fontSize: 11,
     color: colors.muted,
+    marginTop: 4
+  },
+  pixMockWarning: {
+    fontSize: 10,
+    color: colors.primary,
     marginTop: 8,
+    fontWeight: '600'
+  },
+  pixCodeContainer: {
+    marginVertical: 12,
+    gap: 8
+  },
+  pixCodeLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text
+  },
+  pixCodeBox: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  pixCodeText: {
+    fontSize: 10,
+    color: colors.text,
     fontFamily: 'monospace'
+  },
+  pixCopyButton: {
+    backgroundColor: colors.accent,
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center'
+  },
+  pixCopyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700'
   },
   pixInfoContainer: {
     backgroundColor: colors.background,
