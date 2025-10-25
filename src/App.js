@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { View } from 'react-native';
 import HomeScreen from './screens/HomeScreen';
 import LoginScreen from './screens/LoginScreen';
 import ProductListScreen from './screens/ProductListScreen';
@@ -45,14 +46,16 @@ export default function App() {
 
   return (
     <TableProvider>
-      {currentScreen === 'Home' && <HomeScreen onNavigate={handleNavigate} />}
-      {currentScreen === 'Login' && <LoginScreen onNavigate={handleNavigate} screenParams={screenParams} />}
-      {currentScreen === 'Products' && <ProductListScreen user={user} onNavigate={handleNavigate} screenParams={screenParams} />}
-      {currentScreen === 'OpenTables' && <OpenTablesScreen onNavigate={handleNavigate} screenParams={screenParams} />}
-      {currentScreen === 'BuyChips' && <BuyChipsScreen onNavigate={handleNavigate} screenParams={screenParams} />}
-      {currentScreen === 'SellProduct' && (
-        <SellProductScreen tableId={screenParams.tableId} onNavigate={handleNavigate} screenParams={screenParams} />
-      )}
+      <View style={{ flex: 1 }}>
+        {currentScreen === 'Home' && <HomeScreen onNavigate={handleNavigate} />}
+        {currentScreen === 'Login' && <LoginScreen onNavigate={handleNavigate} screenParams={screenParams} />}
+        {currentScreen === 'Products' && <ProductListScreen user={user} onNavigate={handleNavigate} screenParams={screenParams} />}
+        {currentScreen === 'OpenTables' && <OpenTablesScreen onNavigate={handleNavigate} screenParams={screenParams} />}
+        {currentScreen === 'BuyChips' && <BuyChipsScreen onNavigate={handleNavigate} screenParams={screenParams} />}
+        {currentScreen === 'SellProduct' && (
+          <SellProductScreen tableId={screenParams.tableId} onNavigate={handleNavigate} screenParams={screenParams} />
+        )}
+      </View>
     </TableProvider>
   );
 }

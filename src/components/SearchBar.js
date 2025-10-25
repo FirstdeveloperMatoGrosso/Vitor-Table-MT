@@ -28,13 +28,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 8,
     marginHorizontal: 16,
-    backgroundColor: '#FFFFFF'
+    marginTop: 12,
+    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 960,
+    gap: 12
   },
   input: {
     flex: 1,
     fontSize: 16,
     marginRight: 16,
-    color: colors.text
+    color: colors.text,
+    outlineStyle: 'none'
   },
   button: {
     paddingHorizontal: 20,
